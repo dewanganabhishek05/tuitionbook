@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -62,14 +62,29 @@ jobs:
             fs.writeFileSync(f, s);
           "
           sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=armeabi-v7a,arm64-v8a/' android/gradle.properties
-          grep -n "reactNativeArchitectures" android/gradle.properties
+          sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g/' android/gradle.properties
+          printf "\norg.gradle.parallel=true\norg.gradle.caching=true\n" >> android/gradle.properties
+          grep -nE "reactNativeArchitectures|jvmargs|parallel|caching" android/gradle.properties
 
       - name: Build release APK
+        id: build
         working-directory: android
         shell: bash
         run: |
           set -o pipefail
-          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee /tmp/logs/gradle.log
+          mkdir -p /tmp/logs && touch /tmp/logs/gradle.log
+          # Heartbeat: publish the latest log lines every 8 minutes to the build-progress branch.
+          (
+            mkdir -p /tmp/prog && cd /tmp/prog && git init -q -b build-progress
+            git config user.name github-actions && git config user.email github-actions@users.noreply.github.com
+            while sleep 480; do
+              tail -n 80 /tmp/logs/gradle.log > progress.log
+              git add -A && git commit -qm "progress $(date -u +%T)" && \
+                git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" build-progress
+            done
+          ) >/dev/null 2>&1 &
+          START=$(date +%s)
+          ./gradlew assembleRelease --no-daemon --stacktrace --parallel 2>&1 | while IFS= read -r line; do printf '[%4ds] %s\n' $(( $(date +%s) - START )) "$line"; done | tee /tmp/logs/gradle.log
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -90,7 +105,7 @@ jobs:
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" apk-builds
 
       - name: Report failure details
-        if: failure()
+        if: failure() || cancelled()
         run: |
           mkdir -p /tmp/fail && cd /tmp/fail
           echo "Build failed in run $GITHUB_RUN_ID at $(date -u +%FT%TZ) for $GITHUB_SHA" > BUILD_FAILED.txt
