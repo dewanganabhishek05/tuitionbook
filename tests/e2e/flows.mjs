@@ -526,6 +526,19 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await see('18 shown');
   });
 
+  await step('With many absentees, the parents sheet still shows Done on screen (found on Android)', async () => {
+    await go('/');
+    await click('Take attendance');
+    await click('All absent');
+    await click('Save attendance');
+    await see('Tell parents?');
+    const done = page.getByText('Done', { exact: true }).filter({ visible: true }).last();
+    const box = await done.boundingBox();
+    if (!box || box.y + box.height > 844) throw new Error(`Done is off-screen (y=${box && Math.round(box.y)})`);
+    await done.click({ trial: false });
+    await see('0/18 present');
+  });
+
   await step('No JavaScript errors during the whole run', async () => {
     if (pageErrors.length) throw new Error(pageErrors.join(' | '));
   });

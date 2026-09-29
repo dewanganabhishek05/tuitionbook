@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import type { ComponentProps, ReactNode } from 'react';
 import {
   ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text as RNText,
-  TextInput, View, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle,
+  TextInput, View, useWindowDimensions, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { initials } from '../lib/format';
@@ -357,16 +357,29 @@ export function Fab({ icon = 'add', label, onPress }: { icon?: IconName; label: 
   );
 }
 
-export function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title: string; children: ReactNode }) {
+/**
+ * Bottom sheet. Tall content scrolls inside it (capped at ~85% of the screen), and `footer`
+ * stays pinned at the bottom so its buttons are always reachable.
+ */
+export function Sheet({ visible, onClose, title, children, footer }: {
+  visible: boolean; onClose: () => void; title: string; children: ReactNode; footer?: ReactNode;
+}) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, backgroundColor: c.overlay }} onPress={onClose} />
-      <View style={{ backgroundColor: c.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: Math.max(insets.bottom, 16) + 8, gap: 14 }}>
-        <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: c.border, marginTop: -8 }} />
-        <Text v="title">{title}</Text>
-        {children}
+      <View style={{
+        maxHeight: height * 0.85, backgroundColor: c.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+        paddingTop: 20, paddingBottom: Math.max(insets.bottom, 16) + 8,
+      }}>
+        <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: c.border, marginTop: -8, marginBottom: 14 }} />
+        <Text v="title" style={{ paddingHorizontal: 20, marginBottom: 14 }}>{title}</Text>
+        <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }} keyboardShouldPersistTaps="handled">
+          {children}
+        </ScrollView>
+        {footer ? <View style={{ paddingHorizontal: 20, paddingTop: 14, gap: 10 }}>{footer}</View> : null}
       </View>
     </Modal>
   );

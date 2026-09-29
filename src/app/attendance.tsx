@@ -126,7 +126,7 @@ export default function RollCall() {
         </>
       )}
 
-      <Sheet visible={!!absentees} onClose={() => { setAbsentees(null); goBack(); }} title="Tell parents?">
+      <Sheet visible={!!absentees} onClose={() => { setAbsentees(null); goBack(); }} title="Tell parents?" footer={<><Button label="Done" onPress={() => { setAbsentees(null); goBack(); }} /></>}>
         <Text v="caption" tone="muted">
           Saved. Send a quick WhatsApp note to the parents of students who were absent.
         </Text>
@@ -149,7 +149,6 @@ export default function RollCall() {
             </View>
           ))}
         </Card>
-        <Button label="Done" onPress={() => { setAbsentees(null); goBack(); }} />
       </Sheet>
     </Screen>
   );

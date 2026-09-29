@@ -164,7 +164,7 @@ npm test          # 50 data-layer tests on real SQLite with a fake clock
 
 `npm test` covers month and year boundaries, leap years, archive and restore, joining-date and fee edits, partial payments, overpayments, overdue rules, attendance rules, search, cascade deletes, and backup/restore including failure rollback.
 
-End-to-end UI flows (39 of them) run against the web preview:
+End-to-end UI flows (40 of them) run against the web preview:
 
 ```bash
 npx expo start --web --port 8081

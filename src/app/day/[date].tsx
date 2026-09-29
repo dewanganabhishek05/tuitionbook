@@ -161,11 +161,10 @@ export default function DayScreen() {
         )}
       </Section>
 
-      <Sheet visible={holidaySheet} onClose={() => setHolidaySheet(false)} title={holiday ? 'Rename holiday' : 'Mark as holiday'}>
+      <Sheet visible={holidaySheet} onClose={() => setHolidaySheet(false)} title={holiday ? 'Rename holiday' : 'Mark as holiday'} footer={<><Button label={holiday ? 'Save' : 'Mark as holiday'} icon="sunny" onPress={saveHoliday} /></>}>
         <KeyboardAvoidingView behavior="padding">
           <Field label="Name (optional)" value={holidayName} onChangeText={setHolidayName} placeholder="e.g. Diwali, Exam break" autoFocus />
         </KeyboardAvoidingView>
-        <Button label={holiday ? 'Save' : 'Mark as holiday'} icon="sunny" onPress={saveHoliday} />
       </Sheet>
 
       <MarkSheet entry={editing} date={date} future={future} onClose={() => setEditing(null)}
@@ -197,7 +196,14 @@ function MarkSheet({ entry, date, future, onClose, onSave }: {
   if (!entry && forId !== null) setForId(null);
 
   return (
-    <Sheet visible={!!entry} onClose={onClose} title={entry ? entry.name : ''}>
+    <Sheet visible={!!entry} onClose={onClose} title={entry ? entry.name : ''} footer={
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        {entry?.status ? (
+          <Button label="Clear mark" variant="secondary" onPress={() => onSave(null, '')} style={{ flex: 1 }} />
+        ) : null}
+        <Button label="Save" icon="checkmark" disabled={!status} onPress={() => status && onSave(status, status === 'leave' ? note : '')} style={{ flex: 1 }} />
+      </View>
+    }>
       <Text v="caption" tone="muted">{formatLongDate(date)}</Text>
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         {!future && <Chip label="Present" selected={status === 'present'} onPress={() => setStatus('present')} />}
@@ -209,12 +215,6 @@ function MarkSheet({ entry, date, future, onClose, onSave }: {
           <Field label="Reason (optional)" value={note} onChangeText={setNote} placeholder="e.g. Sick, Family function" />
         </KeyboardAvoidingView>
       )}
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        {entry?.status ? (
-          <Button label="Clear mark" variant="secondary" onPress={() => onSave(null, '')} style={{ flex: 1 }} />
-        ) : null}
-        <Button label="Save" icon="checkmark" disabled={!status} onPress={() => status && onSave(status, status === 'leave' ? note : '')} style={{ flex: 1 }} />
-      </View>
     </Sheet>
   );
 }

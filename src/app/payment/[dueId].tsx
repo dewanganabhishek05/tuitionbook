@@ -151,7 +151,10 @@ export default function PaymentScreen() {
         )}
       </Screen>
 
-      <Sheet visible={!!receipt} onClose={() => setReceipt(null)} title="Payment recorded">
+      <Sheet visible={!!receipt} onClose={() => setReceipt(null)} title="Payment recorded" footer={<>{f.parent_phone ? (
+          <Button label="Send receipt on WhatsApp" icon="logo-whatsapp" variant="secondary" onPress={() => receipt && sendReceipt(receipt)} />
+        ) : null}
+        <Button label="Done" onPress={() => { setReceipt(null); goBack(); }} /></>}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.goodSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="checkmark" size={24} color={c.good} />
@@ -161,15 +164,9 @@ export default function PaymentScreen() {
             {balance > 0 ? ` ${rupees(balance)} still due.` : ' Fully paid.'}
           </Text>
         </View>
-        {f.parent_phone ? (
-          <Button label="Send receipt on WhatsApp" icon="logo-whatsapp" variant="secondary" onPress={() => receipt && sendReceipt(receipt)} />
-        ) : null}
-        <Button label="Done" onPress={() => { setReceipt(null); goBack(); }} />
       </Sheet>
 
-      <Sheet visible={editDue} onClose={() => setEditDue(false)} title="Change amount due">
-        <Text v="caption" tone="muted">For a discount or a one-off change for {formatMonth(f.month)} only. To change the fee for every month, edit the student.</Text>
-        <Field label="Amount due (₹)" value={dueText} onChangeText={setDueText} keyboardType="number-pad" />
+      <Sheet visible={editDue} onClose={() => setEditDue(false)} title="Change amount due" footer={
         <Button
           label="Save"
           onPress={async () => {
@@ -183,6 +180,9 @@ export default function PaymentScreen() {
             setEditDue(false);
           }}
         />
+      }>
+        <Text v="caption" tone="muted">For a discount or a one-off change for {formatMonth(f.month)} only. To change the fee for every month, edit the student.</Text>
+        <Field label="Amount due (₹)" value={dueText} onChangeText={setDueText} keyboardType="number-pad" />
       </Sheet>
     </KeyboardAvoidingView>
   );
