@@ -1,0 +1,91 @@
+# Main flows on a real Android build (emulator, airplane mode). Run by tests/android/run-e2e.sh.
+appId: com.tuitionbook.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Set up your first batch"
+    timeout: 90000
+- takeScreenshot: 01-first-launch
+
+# Sample data
+- tapOn: "Try with sample data"
+- extendedWaitUntil:
+    visible: ".*/18 paid"
+    timeout: 120000
+- takeScreenshot: 02-today
+
+# Attendance: mark everyone absent, save, check the parents sheet and the Today card
+- tapOn: "Class 10 · Maths"
+- extendedWaitUntil:
+    visible: "Save attendance"
+    timeout: 20000
+- tapOn: "All absent"
+- takeScreenshot: 03-roll-call
+- tapOn: "Save attendance"
+- extendedWaitUntil:
+    visible: "Tell parents?"
+    timeout: 20000
+- takeScreenshot: 04-tell-parents
+- tapOn: "Done"
+- extendedWaitUntil:
+    visible: "0/6 present"
+    timeout: 20000
+
+# Fees: record a payment for a pending student
+- tapOn: "Fees"
+- extendedWaitUntil:
+    visible: "Pending · \\d+"
+    timeout: 20000
+- takeScreenshot: 05-fees
+- tapOn: "Diya Patel"
+- extendedWaitUntil:
+    visible: "Balance due"
+    timeout: 20000
+- tapOn: "Record ₹.*"
+- extendedWaitUntil:
+    visible: "Payment recorded"
+    timeout: 20000
+- takeScreenshot: 06-payment-recorded
+- tapOn: "Done"
+- extendedWaitUntil:
+    visible: "Pending · \\d+"
+    timeout: 20000
+- assertNotVisible: "Diya Patel"
+
+# Students: list and search
+- tapOn: "Students"
+- extendedWaitUntil:
+    visible: "18 shown"
+    timeout: 20000
+- tapOn: "Search name or phone"
+- inputText: "Aarav"
+- extendedWaitUntil:
+    visible: "1 shown"
+    timeout: 10000
+- hideKeyboard
+- takeScreenshot: 07-students-search
+- tapOn: "Aarav Sharma"
+- extendedWaitUntil:
+    visible: "Send fee reminder|Fee outstanding"
+    timeout: 20000
+- takeScreenshot: 08-student
+- back
+
+# Backup screen shows the Google connect button on a real device
+- tapOn: "More"
+- tapOn: "Backup & restore"
+- extendedWaitUntil:
+    visible: "Connect Google account"
+    timeout: 30000
+- takeScreenshot: 09-backup
+- back
+
+# Data survives an app restart (on-device SQLite)
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: ".*/18 paid"
+    timeout: 60000
+- assertVisible: "0/6 present"
+- takeScreenshot: 10-after-restart

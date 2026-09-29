@@ -57,13 +57,22 @@ The app uses native modules for Google Sign-In, so it **does not run in Expo Go*
 
 ### Option A — GitHub Actions (set up in this repo)
 
-Every push to `main` runs `.github/workflows/android.yml`. It runs the tests, generates the Android project, and builds an **unsigned** release APK. The APK is published to the `apk-builds` branch as `tuitionbook-unsigned.apk`, and also attached as a run artifact. You can re-run it any time from **Actions → Android APK → Run workflow**.
+Every push to `main` runs `.github/workflows/android.yml`:
+
+1. **Build.** Runs the tests, generates the Android project, and builds **unsigned** release APKs (minified, one per CPU type plus a universal one). They are published to the `apk-builds` branch as `tuitionbook-<abi>-unsigned.apk`:
+   - `arm64-v8a`: almost all phones from 2017 onwards
+   - `armeabi-v7a`: older or low-end 32-bit phones
+   - `x86_64`: Chromebooks and emulators
+   - `universal`: works everywhere, but is the largest
+2. **Emulator test.** Installs the app on an Android 14 emulator in airplane mode and runs the Maestro flows in `tests/android/`: sample data, attendance, a payment, search, the backup screen, a restart to check the data is still there, and dark mode. Screenshots, logs and any crash traces are published to the `e2e-results` branch.
+
+You can re-run everything from **Actions → Android APK → Run workflow**.
 
 **Sign it** with your release key. The key is never stored on GitHub, and you must keep it safe: Android will only install updates signed with the same key.
 
 ```bash
 # uber-apk-signer: https://github.com/patrickfav/uber-apk-signer/releases
-java -jar uber-apk-signer-1.3.0.jar --apks tuitionbook-unsigned.apk \
+java -jar uber-apk-signer-1.3.0.jar --apks tuitionbook-arm64-v8a-unsigned.apk \
   --ks tuitionbook-release.jks --ksAlias tuitionbook --ksPass <password> --ksKeyPass <password>
 ```
 

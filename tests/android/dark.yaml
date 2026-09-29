@@ -1,0 +1,12 @@
+appId: com.tuitionbook.app
+---
+- launchApp
+- extendedWaitUntil:
+    visible: ".*/18 paid"
+    timeout: 60000
+- takeScreenshot: 11-dark-today
+- tapOn: "Fees"
+- extendedWaitUntil:
+    visible: "Pending · \\d+"
+    timeout: 20000
+- takeScreenshot: 12-dark-fees

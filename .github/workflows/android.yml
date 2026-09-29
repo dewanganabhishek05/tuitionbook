@@ -49,7 +49,7 @@ jobs:
           CI: 1
         run: npx expo prebuild --platform android --no-install --clean
 
-      - name: Configure release build (unsigned, phone CPUs only)
+      - name: Configure release build (unsigned, split per CPU)
         run: |
           node -e "
             const fs = require('fs');
@@ -59,9 +59,12 @@ jobs:
             const j = s.indexOf('signingConfig signingConfigs.debug', i);
             if (i < 0 || j < 0) throw new Error('release signing line not found');
             s = s.slice(0, j) + '// unsigned: signed later with the owner\'s keystore' + s.slice(j + 'signingConfig signingConfigs.debug'.length);
+            // One APK per CPU type (smaller downloads) plus a universal one.
+            s = s.replace(/android \{\n/, \"android {\n    splits { abi { enable true; reset(); include 'armeabi-v7a', 'arm64-v8a', 'x86_64'; universalApk true } }\n\");
+            if (!s.includes('splits { abi')) throw new Error('splits not added');
             fs.writeFileSync(f, s);
           "
-          sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=armeabi-v7a,arm64-v8a/' android/gradle.properties
+          sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64/' android/gradle.properties
           sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g/' android/gradle.properties
           printf "\norg.gradle.parallel=true\norg.gradle.caching=true\n" >> android/gradle.properties
           grep -nE "reactNativeArchitectures|jvmargs|parallel|caching" android/gradle.properties
@@ -94,8 +97,12 @@ jobs:
 
       - name: Publish to apk-builds branch
         run: |
-          APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
-          mkdir -p /tmp/out && cp "$APK" /tmp/out/tuitionbook-unsigned.apk
+          mkdir -p /tmp/out
+          for f in android/app/build/outputs/apk/release/*.apk; do
+            abi=$(basename "$f" | sed -E 's/^app-(.*)-release-unsigned\.apk$/\1/')
+            cp "$f" "/tmp/out/tuitionbook-${abi}-unsigned.apk"
+          done
+          ls -la /tmp/out
           cd /tmp/out
           printf "commit=%s\nbuilt=%s\nrun=%s\n" "$GITHUB_SHA" "$(date -u +%FT%TZ)" "$GITHUB_RUN_ID" > BUILD_INFO.txt
           git init -q -b apk-builds
@@ -115,3 +122,62 @@ jobs:
           git config user.email "github-actions@users.noreply.github.com"
           git add . && git commit -qm "Build failed for ${GITHUB_SHA::7}"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" apk-builds || true
+
+  android-e2e:
+    name: Emulator test (Maestro)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tuitionbook-unsigned-apk
+          path: apk
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Sign the x86_64 APK with a throwaway CI key
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          keytool -genkeypair -keystore /tmp/ci.jks -alias ci -keyalg RSA -keysize 2048 -validity 2 \
+            -storepass cipass -keypass cipass -dname "CN=CI"
+          "$BT/zipalign" -f 4 apk/app-x86_64-release-unsigned.apk /tmp/aligned.apk
+          "$BT/apksigner" sign --ks /tmp/ci.jks --ks-pass pass:cipass --key-pass pass:cipass --out /tmp/app.apk /tmp/aligned.apk
+
+      - name: Run flows on an Android 14 emulator (airplane mode)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: bash tests/android/run-e2e.sh /tmp/app.apk
+
+      - name: Publish results to e2e-results branch
+        if: always()
+        run: |
+          mkdir -p /tmp/e2e && cd /tmp/e2e
+          printf "commit=%s\nrun=%s\noutcome=%s\n" "$GITHUB_SHA" "$GITHUB_RUN_ID" "${{ job.status }}" > RUN_INFO.txt
+          git init -q -b e2e-results
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A && git commit -qm "E2E results for ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" e2e-results
