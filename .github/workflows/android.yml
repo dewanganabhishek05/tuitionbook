@@ -91,18 +91,26 @@ jobs:
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
+        # (runs before publishing, so the emulator job always gets the APKs)
         with:
           name: tuitionbook-unsigned-apk
           path: android/app/build/outputs/apk/release/*.apk
 
       - name: Publish to apk-builds branch
+        shell: bash
         run: |
+          exec > >(tee -a /tmp/logs/publish.log) 2>&1
+          set -x
           mkdir -p /tmp/out
+          ls -la android/app/build/outputs/apk/release/
           for f in android/app/build/outputs/apk/release/*.apk; do
             abi=$(basename "$f" | sed -E 's/^app-(.*)-release-unsigned\.apk$/\1/')
+            size=$(stat -c %s "$f")
+            echo "$abi: $size bytes"
+            if [ "$size" -gt 95000000 ]; then echo "skip $abi (over GitHub's 100 MB file limit; see the run artifact)"; continue; fi
             cp "$f" "/tmp/out/tuitionbook-${abi}-unsigned.apk"
           done
-          ls -la /tmp/out
+          ls -la /tmp/out > /tmp/out/SIZES.txt
           cd /tmp/out
           printf "commit=%s\nbuilt=%s\nrun=%s\n" "$GITHUB_SHA" "$(date -u +%FT%TZ)" "$GITHUB_RUN_ID" > BUILD_INFO.txt
           git init -q -b apk-builds
