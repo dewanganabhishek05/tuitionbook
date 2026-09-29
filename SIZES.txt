@@ -1,0 +1,8 @@
+total 116252
+drwxr-xr-x  2 runner runner     4096 Sep 29 13:24 .
+drwxrwxrwt 23 root   root      12288 Sep 29 13:24 ..
+-rw-r--r--  1 runner runner        0 Sep 29 13:24 SIZES.txt
+-rw-r--r--  1 runner runner 24640311 Sep 29 13:24 tuitionbook-arm64-v8a-unsigned.apk
+-rw-r--r--  1 runner runner 23646705 Sep 29 13:24 tuitionbook-armeabi-v7a-unsigned.apk
+-rw-r--r--  1 runner runner 45831557 Sep 29 13:24 tuitionbook-universal-unsigned.apk
+-rw-r--r--  1 runner runner 24899534 Sep 29 13:24 tuitionbook-x86_64-unsigned.apk
