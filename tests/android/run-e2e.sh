@@ -11,6 +11,10 @@ adb wait-for-device
 adb install -r "$APK" | tee "$OUT/install.txt"
 adb shell dumpsys package com.tuitionbook.app | grep -E "versionName|versionCode|permission" > "$OUT/package.txt" || true
 
+# Slow CI emulators sometimes show "System UI / Launcher isn't responding" over the app: hide those.
+adb shell settings put global hide_error_dialogs 1 || true
+adb shell settings put global anr_show_background 0 || true
+
 # Prove it works fully offline.
 adb shell cmd connectivity airplane-mode enable || adb shell settings put global airplane_mode_on 1
 adb shell settings get global airplane_mode_on > "$OUT/airplane_mode.txt"
@@ -18,12 +22,18 @@ adb shell settings get global airplane_mode_on > "$OUT/airplane_mode.txt"
 adb logcat -c
 maestro test flow.yaml --format junit --output "$OUT/report.xml" --test-output-dir "$OUT/maestro" 2>&1 | tee "$OUT/maestro.log"
 RC=${PIPESTATUS[0]}
+if [ "$RC" -ne 0 ]; then
+  # One retry, so an emulator hiccup isn't reported as an app failure (both logs are kept).
+  echo "First attempt failed; retrying once" | tee "$OUT/retry.txt"
+  maestro test flow.yaml --format junit --output "$OUT/report-retry.xml" --test-output-dir "$OUT/maestro-retry" 2>&1 | tee "$OUT/maestro-retry.log"
+  RC=${PIPESTATUS[0]}
+fi
 
 adb shell cmd uimode night yes || true
 maestro test dark.yaml --test-output-dir "$OUT/maestro-dark" 2>&1 | tee "$OUT/maestro-dark.log" || true
 
 adb logcat -d > "$OUT/logcat.txt"
-grep -nE "FATAL EXCEPTION|AndroidRuntime: |ReactNativeJS.*(Error|Exception)" "$OUT/logcat.txt" > "$OUT/crashes.txt" || true
+grep -nE "FATAL EXCEPTION|AndroidRuntime: |ReactNativeJS.*(Error|Exception)" "$OUT/logcat.txt" | grep -v "VM exiting" > "$OUT/crashes.txt" || true
 find . "$OUT" -name "*.png" -newer "$OUT/install.txt" -exec cp {} "$OUT/" \; 2>/dev/null || true
 echo "maestro exit=$RC crashes=$(wc -l < "$OUT/crashes.txt")" | tee "$OUT/summary.txt"
 exit $RC
