@@ -1,6 +1,6 @@
 # TuitionBook — Test report
 
-**Date:** 29 Sep 2026 · **Build:** Expo SDK 57 / React Native 0.86 · **Result:** 50/50 data tests, 35/35 UI flows passing
+**Date:** 29 Sep 2026 · **Build:** Expo SDK 57 / React Native 0.86 · **Result:** 50/50 data tests, 35/35 UI flows, and the Android emulator run all passing
 
 ## How it was tested
 
@@ -10,6 +10,7 @@
 | UI | 35 end-to-end flows from a fresh install | `tests/e2e/flows.mjs`: Playwright driving the web build at phone size (390×844) | 35 pass, 0 JavaScript errors |
 | Static | Types and lint | `tsc --noEmit`, `expo lint` | Clean |
 | CI | All of the above, plus the Android build | GitHub Actions on every push to `main` | Checks pass |
+| Android | The real release APK on an Android 14 emulator in **airplane mode** | Maestro flows (`tests/android/`), run by CI | Pass: no crashes; data still there after a restart; dark mode checked |
 
 To make sure the tests actually catch problems, two fixes were deliberately undone. Three tests failed as expected, then passed again once the fixes were restored.
 
@@ -113,10 +114,20 @@ To make sure the tests actually catch problems, two fixes were deliberately undo
 34. The back button works on deep links.
 35. No JavaScript errors during the whole run.
 
+## Release APK checks
+
+| APK | Size | Contents |
+|---|---|---|
+| `TuitionBook-1.0.0-arm64-v8a.apk` | 24.7 MB | Most phones |
+| `TuitionBook-1.0.0-armeabi-v7a.apk` | 23.7 MB | Older 32-bit phones |
+| `TuitionBook-1.0.0-universal.apk` | 45.9 MB | All CPU types |
+
+All three are package `com.tuitionbook.app` 1.0.0 and run on Android 7.0 and newer (built for Android 16). They are signed with the release key (v2 and v3 signatures, verified). The only permissions requested are Internet (Google Drive backup) and Vibrate. The storage and draw-over-apps permissions the build tools add by default are removed.
+
 ## Not covered here (needs a real phone)
 
 - **Google Drive sign-in, upload and restore.** Needs your Google Cloud OAuth client (see README) and a phone with Google Play Services. The Drive code handles an expired token (refresh and retry once), a missing folder (creates it), a cancelled sign-in, and a "not set up" error.
-- **Behaviour only visible on a device:** haptics, the Android back gesture, the keyboard over forms, the share sheet, and opening WhatsApp or the phone dialler. These use standard Expo modules, but only a device can confirm them.
+- **Behaviour only visible on a real phone:** haptics, the keyboard over forms, the share sheet, and opening WhatsApp or the phone dialler. (Launching, navigation, the Android back button, saving data and dark mode were all confirmed on the emulator.)
 
 A 5-minute checklist to run on the phone:
 1. Load sample data.
