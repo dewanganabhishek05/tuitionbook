@@ -55,24 +55,28 @@ The app uses native modules for Google Sign-In, so it **does not run in Expo Go*
 
 ## Build an Android APK
 
-### Option A — in the cloud with EAS (easiest, no Android Studio needed)
+### Option A — GitHub Actions (set up in this repo)
+
+Every push to `main` runs `.github/workflows/android.yml`. It runs the tests, generates the Android project, and builds an **unsigned** release APK. The APK is published to the `apk-builds` branch as `tuitionbook-unsigned.apk`, and also attached as a run artifact. You can re-run it any time from **Actions → Android APK → Run workflow**.
+
+**Sign it** with your release key. The key is never stored on GitHub, and you must keep it safe: Android will only install updates signed with the same key.
+
+```bash
+# uber-apk-signer: https://github.com/patrickfav/uber-apk-signer/releases
+java -jar uber-apk-signer-1.3.0.jar --apks tuitionbook-unsigned.apk \
+  --ks tuitionbook-release.jks --ksAlias tuitionbook --ksPass <password> --ksKeyPass <password>
+```
+
+### Option B — EAS cloud build
 
 ```bash
 npx eas-cli@latest login          # free Expo account
-npx eas-cli@latest build:configure
 npm run build:apk                 # = eas build -p android --profile preview
 ```
 
-When the build finishes you get a link. Open it on your phone to install the APK. For the Play Store, run `npm run build:release`, which produces an `.aab`.
+### Option C — on your computer
 
-### Option B — on your computer
-
-You need Android Studio (with the Android SDK) and JDK 17.
-
-```bash
-npx expo run:android                    # debug build on a connected phone or emulator
-npx expo run:android --variant release  # release build
-```
+You need Android Studio (with the Android SDK) and JDK 17. Run `npx expo run:android --variant release`.
 
 ---
 
@@ -91,6 +95,7 @@ Drive backup needs an OAuth client, which is free. Until you do this, file backu
 5. Open **Credentials → Create credentials → OAuth client ID → Android**:
    - Package name: `com.tuitionbook.app` (change it in `app.json` first if you want your own).
    - **SHA-1 certificate fingerprint** of the key that signs your APK:
+     - APKs signed with the `tuitionbook-release.jks` key (Option A): use that key's SHA-1, which is in `SIGNING-KEY-README.txt` next to the key.
      - EAS builds: run `npx eas-cli@latest credentials -p android` and copy the SHA-1.
      - Local debug builds: run `cd android && ./gradlew signingReport`.
      - Play Store: also add the **App signing key** SHA-1 from Play Console → *Setup → App integrity*.
@@ -129,9 +134,20 @@ src/
   lib/                    date and formatting helpers
 ```
 
-## Checks
+## Tests
 
 ```bash
 npm run typecheck
 npm run lint
+npm test          # 50 data-layer tests on real SQLite with a fake clock
+```
+
+`npm test` covers month and year boundaries, leap years, archive and restore, joining-date and fee edits, partial payments, overpayments, overdue rules, attendance rules, search, cascade deletes, and backup/restore including failure rollback.
+
+End-to-end UI flows (35 of them) run against the web preview:
+
+```bash
+npx expo start --web --port 8081
+npm i -D playwright && npx playwright install chromium
+node tests/e2e/flows.mjs http://localhost:8081
 ```
