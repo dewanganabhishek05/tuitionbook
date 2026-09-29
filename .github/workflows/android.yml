@@ -47,27 +47,12 @@ jobs:
       - name: Generate the Android project
         env:
           CI: 1
-        run: npx expo prebuild --platform android --no-install --clean
-
-      - name: Configure release build (unsigned, split per CPU)
+          TB_ABIS: armeabi-v7a,arm64-v8a,x86_64   # x86_64 is for the emulator test
         run: |
-          node -e "
-            const fs = require('fs');
-            const f = 'android/app/build.gradle';
-            let s = fs.readFileSync(f, 'utf8');
-            const i = s.indexOf('release {', s.indexOf('buildTypes'));
-            const j = s.indexOf('signingConfig signingConfigs.debug', i);
-            if (i < 0 || j < 0) throw new Error('release signing line not found');
-            s = s.slice(0, j) + '// unsigned: signed later with the owner\'s keystore' + s.slice(j + 'signingConfig signingConfigs.debug'.length);
-            // One APK per CPU type (smaller downloads) plus a universal one.
-            s = s.replace(/android \{\n/, \"android {\n    splits { abi { enable true; reset(); include 'armeabi-v7a', 'arm64-v8a', 'x86_64'; universalApk true } }\n\");
-            if (!s.includes('splits { abi')) throw new Error('splits not added');
-            fs.writeFileSync(f, s);
-          "
-          sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64/' android/gradle.properties
-          sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g/' android/gradle.properties
-          printf "\norg.gradle.parallel=true\norg.gradle.caching=true\n" >> android/gradle.properties
-          grep -nE "reactNativeArchitectures|jvmargs|parallel|caching" android/gradle.properties
+          npx expo prebuild --platform android --no-install --clean
+          # plugins/withAndroidRelease.js sets up ABI splits; no signing/ folder here, so APKs are unsigned
+          grep -n "splits { abi" android/app/build.gradle
+          grep -n "reactNativeArchitectures=" android/gradle.properties
 
       - name: Build release APK
         id: build

@@ -43,3 +43,7 @@ yarn-error.*
 
 # test output
 tests/e2e/out/
+
+# release signing key + passwords (never commit)
+/signing/
+*.jks
