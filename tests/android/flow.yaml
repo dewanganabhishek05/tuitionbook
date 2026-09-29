@@ -4,7 +4,7 @@ appId: com.tuitionbook.app
 - launchApp:
     clearState: true
 - extendedWaitUntil:
-    visible: "Set up your first batch"
+    visible: "Add your first student"
     timeout: 90000
 - takeScreenshot: 01-first-launch
 
@@ -15,8 +15,8 @@ appId: com.tuitionbook.app
     timeout: 120000
 - takeScreenshot: 02-today
 
-# Attendance: mark everyone absent, save, check the parents sheet and the Today card
-- tapOn: "Class 10 · Maths"
+# Attendance for everyone: mark all absent, save, parents sheet, Today card
+- tapOn: "Take attendance"
 - extendedWaitUntil:
     visible: "Save attendance"
     timeout: 20000
@@ -29,15 +29,31 @@ appId: com.tuitionbook.app
 - takeScreenshot: 04-tell-parents
 - tapOn: "Done"
 - extendedWaitUntil:
-    visible: "0/6 present"
+    visible: "0/18 present"
     timeout: 20000
+
+# Calendar: month grid, then open the sample holiday from the list
+- tapOn: "Calendar"
+- extendedWaitUntil:
+    visible: "Days taken"
+    timeout: 20000
+- takeScreenshot: 05-calendar
+- scrollUntilVisible:
+    element: "Festival holiday"
+    direction: DOWN
+- tapOn: "Festival holiday"
+- extendedWaitUntil:
+    visible: "Remove holiday"
+    timeout: 20000
+- takeScreenshot: 06-day-holiday
+- back
 
 # Fees: record a payment for a pending student
 - tapOn: "Fees"
 - extendedWaitUntil:
     visible: "Pending · \\d+"
     timeout: 20000
-- takeScreenshot: 05-fees
+- takeScreenshot: 07-fees
 - tapOn: "Diya Patel"
 - extendedWaitUntil:
     visible: "Balance due"
@@ -46,7 +62,7 @@ appId: com.tuitionbook.app
 - extendedWaitUntil:
     visible: "Payment recorded"
     timeout: 20000
-- takeScreenshot: 06-payment-recorded
+- takeScreenshot: 08-payment-recorded
 - tapOn: "Done"
 - extendedWaitUntil:
     visible: "Pending · \\d+"
@@ -58,18 +74,17 @@ appId: com.tuitionbook.app
 - extendedWaitUntil:
     visible: "18 shown"
     timeout: 20000
-- tapOn: "Search name or phone"
+- tapOn: "Search name, phone or class"
 - inputText: "Aarav"
 - extendedWaitUntil:
     visible: "1 shown"
     timeout: 10000
 - hideKeyboard
-- takeScreenshot: 07-students-search
 - tapOn: "Aarav Sharma"
 - extendedWaitUntil:
-    visible: "Send fee reminder|Fee outstanding"
+    visible: "Fee outstanding"
     timeout: 20000
-- takeScreenshot: 08-student
+- takeScreenshot: 09-student
 - back
 
 # Backup screen shows the Google connect button on a real device
@@ -78,7 +93,7 @@ appId: com.tuitionbook.app
 - extendedWaitUntil:
     visible: "Connect Google account"
     timeout: 30000
-- takeScreenshot: 09-backup
+- takeScreenshot: 10-backup
 - back
 
 # Data survives an app restart (on-device SQLite)
@@ -87,5 +102,5 @@ appId: com.tuitionbook.app
 - extendedWaitUntil:
     visible: ".*/18 paid"
     timeout: 60000
-- assertVisible: "0/6 present"
-- takeScreenshot: 10-after-restart
+- assertVisible: "0/18 present"
+- takeScreenshot: 11-after-restart

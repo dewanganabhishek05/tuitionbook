@@ -2,7 +2,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { addDays, addMonths, currentMonth, isoWeekday, today } from '../lib/dates';
 import { notifyChange, quietly } from './live';
-import { batchDays, ensureDues, saveBatch, saveRoll, saveStudent } from './repo';
+import { ensureDues, saveRoll, saveStudent, setHoliday, setMark } from './repo';
 import type { AttendanceStatus, PaymentMode } from './types';
 
 const NAMES = [
@@ -16,45 +16,41 @@ export async function seedDemo(db: SQLiteDatabase) {
 }
 
 async function seed(db: SQLiteDatabase) {
-  const b1 = await saveBatch(db, { name: 'Class 10 · Maths', days: [1, 3, 5], start_time: '17:00', default_fee: 1500 });
-  const b2 = await saveBatch(db, { name: 'Class 9 · Science', days: [2, 4, 6], start_time: '16:00', default_fee: 1200 });
-  const b3 = await saveBatch(db, { name: 'Class 12 · Physics', days: [1, 2, 3, 4, 5, 6], start_time: '07:00', default_fee: 2500 });
-  const batches = [b1, b2, b3];
+  const classes = ['Class 10', 'Class 9', 'Class 12'];
+  const schools = ['DPS', 'St. Mary’s', 'Kendriya Vidyalaya'];
   const fees = [1500, 1200, 2500];
   const joinMonth = addMonths(currentMonth(), -2);
 
-  const ids: { id: number; batch: number }[] = [];
+  const ids: number[] = [];
   for (let i = 0; i < NAMES.length; i++) {
-    const bi = i % 3;
+    const ci = i % 3;
     const id = await saveStudent(db, {
       name: NAMES[i],
       parent_phone: `98${String(76543210 + i * 1379).slice(0, 8)}`,
-      class_name: ['DPS', 'St. Mary’s', 'Kendriya Vidyalaya'][(i >> 1) % 3],
+      class_name: `${classes[ci]} · ${schools[(i >> 1) % 3]}`,
       joining_date: `${joinMonth}-0${1 + (i % 5)}`,
-      monthly_fee: fees[bi],
+      monthly_fee: fees[ci],
       notes: '',
-      batchIds: [batches[bi]],
     });
-    ids.push({ id, batch: batches[bi] });
+    ids.push(id);
   }
   await ensureDues(db);
 
-  // Attendance for the last 3 weeks on each batch's scheduled days (skip today so it can be marked live).
-  const all = await db.getAllAsync<{ id: number; days: string }>('SELECT id, days FROM batches');
+  // Attendance for the last 3 weeks, Monday to Saturday (skip today so it can be marked live),
+  // with one past holiday and one planned leave coming up.
+  const pastHoliday = addDays(today(), -10);
+  await setHoliday(db, pastHoliday, 'Festival holiday');
   for (let back = 21; back >= 1; back--) {
     const date = addDays(today(), -back);
-    for (const b of all) {
-      if (!batchDays(b).includes(isoWeekday(date))) continue;
-      const entries = ids
-        .filter((s) => s.batch === b.id)
-        .map((s, k) => {
-          const r = (s.id * 7 + back * 3 + k) % 11;
-          const status: AttendanceStatus = r === 0 ? 'absent' : r === 5 && back % 2 ? 'leave' : 'present';
-          return { student_id: s.id, status };
-        });
-      await saveRoll(db, b.id, date, entries);
-    }
+    if (isoWeekday(date) === 7 || date === pastHoliday) continue;
+    const entries = ids.map((id, k) => {
+      const r = (id * 7 + back * 3 + k) % 11;
+      const status: AttendanceStatus = r === 0 ? 'absent' : r === 5 && back % 2 ? 'leave' : 'present';
+      return { student_id: id, status };
+    });
+    await saveRoll(db, date, entries);
   }
+  await setMark(db, addDays(today(), 3), ids[0], 'leave', 'Family function');
 
   // Payments: earlier months mostly paid, this month about half paid.
   const dues = await db.getAllAsync<{ id: number; month: string; amount_due: number; student_id: number }>(
@@ -79,8 +75,7 @@ async function seed(db: SQLiteDatabase) {
 
 export async function wipeAll(db: SQLiteDatabase) {
   await db.execAsync(`
-    DELETE FROM payments; DELETE FROM fee_dues; DELETE FROM attendance;
-    DELETE FROM enrollments; DELETE FROM students; DELETE FROM batches;
+    DELETE FROM payments; DELETE FROM fee_dues; DELETE FROM attendance; DELETE FROM holidays; DELETE FROM students;
     DELETE FROM sqlite_sequence;`);
   notifyChange();
 }

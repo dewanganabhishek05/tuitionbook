@@ -1,20 +1,6 @@
-export type AttendanceStatus = 'present' | 'absent' | 'leave' | 'holiday';
+export type AttendanceStatus = 'present' | 'absent' | 'leave';
 export type PaymentMode = 'cash' | 'upi' | 'bank' | 'other';
 export type FeeStatus = 'paid' | 'partial' | 'pending' | 'overdue';
-
-export interface Batch {
-  id: number;
-  name: string;
-  days: string; // "1,3,5"
-  start_time: string; // "HH:MM"
-  default_fee: number;
-  archived: number;
-  created_at: string;
-}
-
-export interface BatchWithCount extends Batch {
-  student_count: number;
-}
 
 export interface Student {
   id: number;
@@ -30,7 +16,6 @@ export interface Student {
 }
 
 export interface StudentListItem extends Student {
-  batch_names: string | null;
   outstanding: number;
 }
 
@@ -38,16 +23,10 @@ export interface RollEntry {
   student_id: number;
   name: string;
   parent_phone: string;
+  class_name: string;
+  joining_date: string;
   status: AttendanceStatus | null;
-}
-
-export interface BatchDay {
-  batch: BatchWithCount;
-  scheduled: boolean;
-  marked: number;
-  present: number;
-  absent: number;
-  holiday: boolean;
+  note: string | null;
 }
 
 export interface FeeRow {
@@ -59,7 +38,33 @@ export interface FeeRow {
   last_paid_on: string | null;
   name: string;
   parent_phone: string;
-  batch_names: string | null;
+  class_name: string;
+}
+
+export interface DaySummary {
+  date: string;
+  expected: number; // active students who had joined by that date
+  marked: number;
+  present: number;
+  absent: number;
+  leave: number;
+  holiday: boolean;
+  holiday_name: string;
+}
+
+export interface Holiday {
+  date: string;
+  name: string;
+}
+
+export interface CalendarDay {
+  date: string;
+  expected: number; // active students who had joined by then
+  marked: number;
+  present: number;
+  absent: number;
+  leave: number;
+  holiday: Holiday | null;
 }
 
 export interface Payment {
@@ -76,6 +81,7 @@ export interface Settings {
   tutor_name: string;
   center_name: string;
   fee_due_day: number;
+  default_fee: number;
   country_code: string;
   last_backup_at: string;
   last_backup_where: string;

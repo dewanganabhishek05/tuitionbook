@@ -1,19 +1,18 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import {
   deleteStudent, feeStatus, getSettings, getStudent, listFeesForStudent, setStudentArchived, studentMonthAttendance,
 } from '../../db/repo';
 import { useDb, useLive } from '../../db/live';
-import type { AttendanceStatus } from '../../db/types';
 import { FEE_BADGE } from '../../ui/fee';
-import { addMonths, currentMonth, daysInMonth, formatDate, formatMonth, isoWeekday } from '../../lib/dates';
+import { addMonths, currentMonth, formatDate, formatMonth } from '../../lib/dates';
 import { callPhone, openWhatsApp, rupees } from '../../lib/format';
-import {
-  Avatar, Badge, Button, Card, Divider, IconButton, Loading, Row, Screen, Section, Stat, Text, confirm, tap,
+import { goBack,
+  Avatar, Badge, Button, Card, Divider, IconButton, Loading, Row, Screen, Section, Stat, Text, confirm,
 } from '../../ui/kit';
 import { useTheme } from '../../ui/theme';
+import { CalendarGrid, Legend } from '../../ui/CalendarGrid';
 
 export default function StudentDetail() {
   const db = useDb();
@@ -28,7 +27,7 @@ export default function StudentDetail() {
   if (data.loading || !fees.data || !settings.data) return <Screen back><Loading /></Screen>;
   if (!data.data) return <Screen back title="Student not found"><Text tone="muted">It may have been deleted.</Text></Screen>;
 
-  const { student: s, batches } = data.data;
+  const s = data.data;
   const dueDay = settings.data.fee_due_day;
   const outstanding = fees.data.reduce((a, f) => a + Math.max(0, f.amount_due - f.paid), 0);
   const archived = s.status === 'archived';
@@ -50,7 +49,7 @@ export default function StudentDetail() {
         <Avatar name={s.name} size={72} tone="accent" />
         <Text v="title" style={{ textAlign: 'center' }}>{s.name}</Text>
         <Text v="caption" tone="muted" style={{ textAlign: 'center' }}>
-          {[batches.map((b) => b.name).join(' · ') || 'No batch', s.class_name].filter(Boolean).join('  ·  ')}
+          {s.class_name || s.parent_phone}
         </Text>
         {archived && <Badge label="Archived" tone="neutral" />}
       </View>
@@ -86,12 +85,23 @@ export default function StudentDetail() {
         }
       >
         <Card>
-          <MonthGrid month={month} marks={att.data?.days ?? []} />
-          <View style={{ flexDirection: 'row', gap: 14, marginTop: 14, justifyContent: 'center' }}>
-            <Legend color={c.good} label="Present" />
-            <Legend color={c.bad} label="Absent" />
-            <Legend color={c.warn} label="Leave" />
-          </View>
+          <CalendarGrid
+            month={month}
+            onPress={(date) => router.push({ pathname: '/day/[date]', params: { date } })}
+            look={(date) => {
+              const hol = att.data?.holidays.find((h) => h.date === date);
+              if (hol) return { fg: c.faint, icon: 'sunny', iconColor: c.warn };
+              const m = att.data?.days.find((x) => x.date === date);
+              if (!m) return {};
+              return m.status === 'present' ? { bg: c.goodSoft, fg: c.good }
+                : m.status === 'absent' ? { bg: c.badSoft, fg: c.bad }
+                : { bg: c.warnSoft, fg: c.warn };
+            }}
+          />
+          <Legend items={[
+            { color: c.good, label: 'Present' }, { color: c.bad, label: 'Absent' },
+            { color: c.warn, label: 'Leave' }, { color: c.warn, label: 'Holiday', icon: 'sunny' },
+          ]} />
         </Card>
       </Section>
 
@@ -139,7 +149,7 @@ export default function StudentDetail() {
             onPress={async () => {
               if (await confirm('Delete student?', 'This removes their attendance and fee history too. It cannot be undone.', 'Delete', true)) {
                 await deleteStudent(db, id);
-                router.back();
+                goBack();
               }
             }}
           />
@@ -147,58 +157,5 @@ export default function StudentDetail() {
         <Text v="caption" tone="faint" style={{ textAlign: 'center' }}>Joined {formatDate(s.joining_date)}</Text>
       </View>
     </Screen>
-  );
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
-      <Text v="caption" tone="muted">{label}</Text>
-    </View>
-  );
-}
-
-function MonthGrid({ month, marks }: { month: string; marks: { date: string; status: AttendanceStatus }[] }) {
-  const { c } = useTheme();
-  const n = daysInMonth(month);
-  const lead = isoWeekday(`${month}-01`) - 1; // Monday-first
-  const byDay = new Map<number, AttendanceStatus>();
-  // If a student is in two batches on one day, show the "worst" mark.
-  const rank: Record<AttendanceStatus, number> = { absent: 3, leave: 2, present: 1, holiday: 0 };
-  for (const m of marks) {
-    const d = Number(m.date.slice(8));
-    const prev = byDay.get(d);
-    if (!prev || rank[m.status] > rank[prev]) byDay.set(d, m.status);
-  }
-  const color = (s?: AttendanceStatus) =>
-    s === 'present' ? c.goodSoft : s === 'absent' ? c.badSoft : s === 'leave' ? c.warnSoft : 'transparent';
-  const fg = (s?: AttendanceStatus) =>
-    s === 'present' ? c.good : s === 'absent' ? c.bad : s === 'leave' ? c.warn : s === 'holiday' ? c.faint : c.muted;
-  const cells = [...Array(lead).fill(null), ...Array.from({ length: n }, (_, i) => i + 1)];
-
-  return (
-    <View>
-      <View style={{ flexDirection: 'row' }}>
-        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-          <Text key={i} v="caption" tone="faint" style={{ flex: 1, textAlign: 'center', marginBottom: 6 }}>{d}</Text>
-        ))}
-      </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {cells.map((d, i) => {
-          const st = d ? byDay.get(d) : undefined;
-          return (
-            <View key={i} style={{ width: `${100 / 7}%`, aspectRatio: 1, padding: 3 }}>
-              {d ? (
-                <Pressable onPress={tap} style={{ flex: 1, borderRadius: 10, backgroundColor: color(st), alignItems: 'center', justifyContent: 'center' }}>
-                  <Text v="label" style={{ color: fg(st) }}>{String(d)}</Text>
-                  {st === 'holiday' && <Ionicons name="sunny-outline" size={9} color={c.faint} />}
-                </Pressable>
-              ) : null}
-            </View>
-          );
-        })}
-      </View>
-    </View>
   );
 }

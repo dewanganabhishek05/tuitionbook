@@ -12,25 +12,37 @@ Built with Expo SDK 57 (React Native 0.86), TypeScript, Expo Router and expo-sql
 
 ## Features
 
+No setup: open the app, add your students, and start.
+
 **Today**
-- This month's fee snapshot: collected vs pending.
-- Today's batches, based on each batch's class days and time. Go back to earlier days to mark attendance you missed.
+- One attendance card for the day: how many students, whether it's taken, and present/absent/leave counts. It also shows a holiday and its name.
+- Step back to earlier days to fill in attendance you missed.
+- This month's fees at a glance: collected vs pending.
 
 **Attendance**
-- Roll call per batch. Everyone starts as Present; tap a name to switch it to Absent. **P / A / L** buttons set Present, Absent or Leave.
-- One-tap **All present**, **All absent** and **Holiday**. Holidays don't count towards attendance %.
+- One roll for all students. Everyone starts as Present; tap a name to switch it to Absent. **P / A / L** buttons set Present, Absent or Leave.
+- One-tap **All present**, **All absent** and **Holiday**. Holidays and leave don't count towards attendance %.
 - After saving, the app offers to **WhatsApp the parents of absent students**.
-- A month calendar for each student and a history for each batch, with attendance %.
+
+**Calendar**
+- A month grid: each day shows present/total once attendance is taken, holidays with a ☀, and planned leave with a dot. You can go into future months to plan.
+- **Tap any date** to see every student's status that day. From there you can:
+  - **mark a holiday**, with an optional name like "Diwali", on any date, including future ones
+  - **add leave with a reason** (e.g. "Sick", "Family function") for any student, including leave planned ahead
+  - change a single mark, or open the full roll.
+- The month summary shows days taken, holidays and average attendance, plus each student's % for the month.
 
 **Students**
-- Search, filter by batch, filter by **Fee pending**, and see archived students.
-- Student page: Call and WhatsApp buttons, attendance %, outstanding fees, fee history, notes.
+- Search by name, phone or class; filter by **Fee pending**; see archived students.
+- **Save & add another** keeps the class, fee and joining date, so entering a whole class is quick.
+- A default monthly fee (Settings) pre-fills for new students.
+- Student page: Call and WhatsApp buttons, attendance calendar and %, outstanding fees, fee history, notes.
 - Archiving a student keeps their history and stops new monthly fees.
 
 **Fees**
 - On the 1st of every month the app adds a due for each active student, starting from their joining month.
 - **Pending / Paid** tabs for any month, with totals and arrears from earlier months.
-- Record a payment (Cash / UPI / Bank / Other). Partial payments are allowed.
+- Record a payment (Cash / UPI / Bank / Other). Partial payments are allowed; overpayments and future dates are blocked.
 - Statuses are **Paid**, **Partial**, **Pending** and **Overdue** (overdue after the due day you set).
 - WhatsApp **fee reminders** and **payment receipts**, pre-filled. You can also share the whole pending list.
 - Change one month's amount for a discount. Changing the student's fee applies from this month on.
@@ -39,10 +51,9 @@ Built with Expo SDK 57 (React Native 0.86), TypeScript, Expo Router and expo-sql
 - **Google Drive**: connect a Google account, then tap **Back up to Drive now**. Backups go into a *TuitionBook Backups* folder in your own Drive. From there you can restore or delete any backup, on this phone or a new one.
 - **Backup file**: export a `.json` file and send it anywhere (WhatsApp to yourself, email, Files). Restore from it on any phone.
 - A restore replaces what's on the phone in a single transaction. If it fails, nothing changes.
+- Older backups, including those from version 1.0 which had batches, still restore.
 
 Also included: light and dark mode, sample data to try the app (**More → Settings**), and erase all data.
-
----
 
 ## Run it
 
@@ -119,7 +130,7 @@ If sign-in shows *"not set up for this build (OAuth client / SHA-1)"*, the SHA-1
 ## How the data works
 
 - **Storage:** `tuitionbook.db` (SQLite, WAL mode) in the app's private storage. No server, no account and no internet are needed for daily use.
-- **Schema** (`src/db/schema.ts`): `batches`, `students`, `enrollments` (student ↔ batch, many-to-many), `attendance` (unique per batch + student + day), `fee_dues` (one per student per month), `payments` (many per due), `settings`. Versioned migrations use `PRAGMA user_version`.
+- **Schema** (`src/db/schema.ts`): `students`, `attendance` (one mark per student per day, with an optional note such as a leave reason), `holidays` (date + name), `fee_dues` (one per student per month), `payments` (many per due), `settings`. Versioned migrations use `PRAGMA user_version`. v3 removed batches: marks from several batches on one day are merged, and days that were all "holiday" become holidays.
 - **Money** is stored in whole rupees as integers. **Dates** are stored as local `YYYY-MM-DD` strings, so time zones never shift them.
 - **Monthly dues** (`ensureDues`) are created on every launch for any month that is missing. Running it more than once is safe.
 - **Backup format** (`src/backup/snapshot.ts`): one JSON file with `app`, `schemaVersion`, `exportedAt`, row counts and every table. A backup made by a newer app version is refused, so an old app can't misread it.
@@ -130,10 +141,10 @@ If sign-in shows *"not set up for this build (OAuth client / SHA-1)"*, the SHA-1
 ```
 src/
   app/                    screens (Expo Router)
-    (tabs)/               Today · Students · Fees · More
-    attendance/[batchId]  roll call
+    (tabs)/               Today · Calendar · Students · Fees · More
+    attendance.tsx        roll call for a date
+    day/[date]            day details: each student, holiday, leave
     student/[id], form    student detail, add/edit
-    batch/[id], form      batch detail + history, add/edit
     payment/[dueId]       record payment, receipts, discount
     backup.tsx            Google Drive + file backup/restore
     settings.tsx
@@ -153,7 +164,7 @@ npm test          # 50 data-layer tests on real SQLite with a fake clock
 
 `npm test` covers month and year boundaries, leap years, archive and restore, joining-date and fee edits, partial payments, overpayments, overdue rules, attendance rules, search, cascade deletes, and backup/restore including failure rollback.
 
-End-to-end UI flows (35 of them) run against the web preview:
+End-to-end UI flows (39 of them) run against the web preview:
 
 ```bash
 npx expo start --web --port 8081

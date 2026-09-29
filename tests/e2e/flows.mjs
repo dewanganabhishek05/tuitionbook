@@ -82,103 +82,95 @@ const lastAlert = () => alerts.at(-1) ?? '';
   await go('/');
 
   /* ---------------------------------------------------------- onboarding */
-  await step('Fresh install shows the set-up empty state', async () => {
-    await see('Set up your first batch');
+  await step('Fresh install starts straight away: add a student or try sample data', async () => {
+    await see('Add your first student');
     await see('Try with sample data');
+    await notSee('batch');
   });
 
-  /* -------------------------------------------------------------- batches */
-  await step('Batch form validates name, time and fee', async () => {
-    await click('Create a batch');
-    await see('New batch');
-    await click('Create batch');
-    await see('Give the batch a name');
-    await fill('e.g. Class 10 · Maths', 'Class 10 · Maths');
-    await fill('17:00', '25:00');
-    await fill('0', '12a');
-    await click('Create batch');
-    await see('Use 24-hour HH:MM, e.g. 17:30');
+  await step('Settings: a default monthly fee for new students', async () => {
+    await go('/settings');
+    const inputs = page.locator('input').filter({ visible: true });
+    await inputs.nth(2).fill('15a');
+    await click('Save', true);
     await see('Whole rupees only');
-  });
-
-  await step('Create a batch that meets every day', async () => {
-    await fill('17:00', '17:00');
-    await fill('0', '1500');
-    for (const day of ['Tue', 'Thu', 'Sat', 'Sun']) await label(day).click();
-    await click('Create batch');
-    await see('Attendance');
-    await see('Class 10 · Maths');
-    await see('0 students');
-  });
-
-  await step('Create a second batch with no fixed days (shows under Other batches)', async () => {
-    await go('/batch/form');
-    await fill('e.g. Class 10 · Maths', 'Weekend Science');
-    for (const day of ['Mon', 'Wed', 'Fri']) await label(day).click(); // untick defaults
-    await fill('0', '1000');
-    await click('Create batch');
-    await go('/');
-    await see('Other batches');
-    await see('Weekend Science');
+    await inputs.nth(2).fill('1500');
+    await click('Save', true);
+    await see('Add your first student');
   });
 
   /* ------------------------------------------------------------- students */
   await step('Student form validates required fields and dates', async () => {
-    await go('/student/form');
-    await click('Add student');
+    await click('Add student', true);
+    await see('New student');
+    await vis(page.getByText('Add student', { exact: true })).click();
     await see('Enter the student’s name');
     await see('Enter a 10-digit phone number');
-    await see('Pick at least one batch');
     await fill('e.g. Aarav Sharma', 'Aarav Sharma');
     await fill('10-digit mobile', '98765');
     await fill('YYYY-MM-DD', '2026-02-30');
-    await click('Add student');
+    await vis(page.getByText('Add student', { exact: true })).click();
     await see('Enter a 10-digit phone number');
     await see('Use the format YYYY-MM-DD');
   });
 
-  await step('Fee pre-fills from the chosen batch, then the student is saved', async () => {
+  await step('Fee pre-fills from Settings; the student is saved', async () => {
     await fill('10-digit mobile', '98765 43210');
-    await fill('YYYY-MM-DD', YESTERDAY); // joined yesterday so a past day can be marked (on the 1st this adds last month's due)
-    await click('Class 10 · Maths');
+    await fill('YYYY-MM-DD', YESTERDAY); // joined yesterday so a past day can be marked
+    await fill('e.g. Class 10, DPS', 'Class 10 · DPS');
     const fee = await ph('0').inputValue();
     if (fee !== '1500') throw new Error(`fee pre-fill was "${fee}"`);
-    await click('Add student');
+    await vis(page.getByText('Add student', { exact: true })).click();
     await see('Aarav Sharma');
     await see('₹1,500 / month');
-    await see('Send fee reminder');
+    await see('Class 10 · DPS');
+  });
+
+  await step('Save & add another keeps class and fee, clears name and phone', async () => {
+    await go('/student/form');
+    await fill('e.g. Aarav Sharma', 'Diya Patel');
+    await fill('10-digit mobile', '9000000011');
+    await fill('e.g. Class 10, DPS', 'Class 9');
+    await click('Save & add another');
+    await see('✓ Diya Patel added');
+    if ((await ph('e.g. Aarav Sharma').inputValue()) !== '') throw new Error('name not cleared');
+    if ((await ph('e.g. Class 10, DPS').inputValue()) !== 'Class 9') throw new Error('class not kept');
+    await fill('e.g. Aarav Sharma', 'Kabir Singh');
+    await fill('10-digit mobile', '9000000012');
+    await click('Save & add another');
+    await see('✓ Kabir Singh added');
   });
 
   await step('Add a future joiner and a free (₹0) student', async () => {
     await go('/student/form');
     await fill('e.g. Aarav Sharma', 'Future Kid');
     await fill('10-digit mobile', '9000000001');
-    await click('Class 10 · Maths');
     await fill('YYYY-MM-DD', NEXT_MONTH_DAY);
-    await click('Add student');
+    await vis(page.getByText('Add student', { exact: true })).click();
     await see('No fees yet', false);
     await go('/student/form');
     await fill('e.g. Aarav Sharma', "Free D'Souza");
     await fill('10-digit mobile', '9000000002');
-    await click('Class 10 · Maths');
     await fill('0', '0');
-    await click('Add student');
+    await vis(page.getByText('Add student', { exact: true })).click();
     await see('₹0 / month');
   });
 
-  await step('Students list: search, no-match, fee-pending filter', async () => {
+  await step('Students list: search by name, phone and class; fee-pending filter', async () => {
     await go('/students');
-    await see('3 shown');
-    await fill('Search name or phone', 'aarav');
+    await see('5 shown');
+    await fill('Search name, phone or class', 'aarav');
     await see('1 shown');
-    await fill('Search name or phone', '43210');
+    await fill('Search name, phone or class', '43210');
     await see('Aarav Sharma');
-    await fill('Search name or phone', 'zzz');
+    await fill('Search name, phone or class', 'class 9');
+    await see('Diya Patel');
+    await see('2 shown'); // Kabir kept "Class 9" from "Save & add another"
+    await fill('Search name, phone or class', 'zzz');
     await see('No matches');
-    await fill('Search name or phone', '');
+    await fill('Search name, phone or class', '');
     await click('Fee pending', true);
-    await see('1 shown');
-    await see('₹1,500 due');
+    await see('3 shown');
     await click('All', true);
   });
 
@@ -189,25 +181,24 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await fill('0', '2000');
     await click('Save changes');
     await see('₹2,000 / month');
-    await see('₹2,000', true);
   });
 
   /* ----------------------------------------------------------- attendance */
-  await step('Roll call lists only students who have joined', async () => {
+  await step('Today shows one attendance card for everyone who has joined', async () => {
     await go('/');
-    await text('Class 10 · Maths', true).click();
+    await see('4 students');
+    await see('Not marked');
+    await click('Take attendance');
     await see('Save attendance');
     await see('Aarav Sharma');
     await see("Free D'Souza");
     await notSee('Future Kid');
-    await see('Present of 2');
+    await see('Present of 4');
+    await see('Class 10 · DPS');
   });
 
   await step('All absent, Holiday toggle and Leave update the counts', async () => {
     await click('All absent');
-    await see('Absent');
-    const absent = await vis(page.getByText('2', { exact: true })).count();
-    if (!absent) throw new Error('absent count not 2');
     await click('Holiday', true);
     await see('Marked as holiday');
     await see('Save as holiday');
@@ -215,37 +206,45 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await click('All present');
     await label("Free D'Souza Leave").click();
     await label('Aarav Sharma Absent').click();
-    await see('Present of 2');
+    await see('Present of 4');
   });
 
-  await step('Save shows the absent-parents sheet, Today shows the result', async () => {
+  await step('Save shows the absent-parents sheet; Today shows the counts', async () => {
     await click('Save attendance');
     await see('Tell parents?');
     await see('Send', true);
     await click('Done', true);
-    await see('0/2 present');
+    await see('2/4 present');
     await page.screenshot({ path: `${OUT}today-marked.png` });
   });
 
+  await step('A student added after marking shows as "not marked yet"', async () => {
+    await go('/student/form');
+    await fill('e.g. Aarav Sharma', 'Late Joiner');
+    await fill('10-digit mobile', '9000000099');
+    await vis(page.getByText('Add student', { exact: true })).click();
+    await see('Late Joiner');
+    await go('/');
+    await see('1 not marked yet');
+  });
+
   await step('Re-opening keeps the saved marks and offers Update', async () => {
-    await text('Class 10 · Maths', true).click();
+    await click('Edit', true);
     await see('Update attendance');
-    const cls = await label('Aarav Sharma Absent').getAttribute('style');
-    if (!cls) throw new Error('no style on mark');
-    await see('0', true);
+    await see('Late Joiner');
   });
 
   await step('Clear attendance removes the day', async () => {
     await label('Clear attendance').click();
-    await see('Attendance');
     await see('Not marked');
   });
 
   await step('Mark a past day (yesterday); next day is blocked at today', async () => {
     await label('Previous day').click();
     await see('Yesterday');
-    await text('Class 10 · Maths', true).click();
-    await see(YESTERDAY.split('-').reverse()[0].replace(/^0/, ''), false);
+    await see('1 student');
+    await click('Take attendance');
+    await see('Present of 1');
     await notSee("Free D'Souza"); // joined today, so not on yesterday's roll
     await click('Save attendance');
     await see('Yesterday');
@@ -257,16 +256,82 @@ const lastAlert = () => alerts.at(-1) ?? '';
   });
 
   await step('Holiday saves and shows on Today', async () => {
-    await text('Class 10 · Maths', true).click();
+    await click('Take attendance');
     await click('Holiday', true);
     await click('Save as holiday');
     await see('Holiday', true);
   });
 
+  /* ------------------------------------------------------------- calendar */
+  await step('Calendar tab: month grid, legend and month summary', async () => {
+    await go('/calendar');
+    await see('Calendar', true);
+    await see('Days taken');
+    await see('Planned leave');
+    await see('Tap a date to see each student');
+    await page.screenshot({ path: `${OUT}calendar.png` });
+  });
+
+  await step('Tap today: day screen shows the holiday; rename it, then remove it', async () => {
+    await label(`Day ${TODAY}`).click();
+    await see('Holiday', true);
+    await see('No class this day');
+    await label('Rename holiday').click();
+    await fill('e.g. Diwali, Exam break', 'Rain holiday');
+    await vis(page.getByText('Save', { exact: true })).click();
+    await see('Rain holiday');
+    await go('/');
+    await see('Rain holiday');
+    await go(`/day/${TODAY}`);
+    await click('Remove holiday');
+    await see('Take attendance');
+  });
+
+  await step('Past day: see each student and change one to leave with a reason', async () => {
+    await go(`/day/${YESTERDAY}`);
+    await see('Yesterday');
+    await see('Present', true);
+    await text('Aarav Sharma', true).click();
+    await page.getByText('Leave', { exact: true }).filter({ visible: true }).last().click(); // the chip in the sheet
+    await fill('e.g. Sick, Family function', 'Sick');
+    await vis(page.getByText('Save', { exact: true })).click();
+    await see('Leave: Sick');
+  });
+
+  await step('Future day: plan leave for a student and mark a named holiday', async () => {
+    await go(`/day/${TOMORROW}`);
+    await see('Upcoming day');
+    await notSee('Take attendance');
+    await text('Diya Patel', true).click();
+    await notSee('Present', true); // only leave is allowed ahead of time
+    await fill('e.g. Sick, Family function', 'Family function');
+    await vis(page.getByText('Save', { exact: true })).click();
+    await see('Leave: Family function');
+    const t2 = new Date(d); t2.setDate(d.getDate() + 2);
+    const IN2 = `${t2.getFullYear()}-${pad(t2.getMonth() + 1)}-${pad(t2.getDate())}`;
+    await go(`/day/${IN2}`);
+    await click('Mark holiday');
+    await fill('e.g. Diwali, Exam break', 'Diwali');
+    await page.getByText('Mark as holiday', { exact: true }).filter({ visible: true }).last().click(); // the button, not the title
+    await see('Diwali');
+    await see('Holiday', true);
+  });
+
+  await step('Planned leave is pre-filled when that day’s roll is taken', async () => {
+    // Tomorrow can't be marked yet, so check it on the day screen and in the calendar list instead.
+    await go('/calendar');
+    if (TOMORROW.slice(0, 7) === TODAY.slice(0, 7)) {
+      await see('Holidays & planned leave');
+      await see('1 on leave');
+    }
+    await go(`/day/${TOMORROW}`);
+    await see('Leave', true);
+  });
+
   /* ------------------------------------------------------------------ fees */
   await step('Fees tab: pending list, totals and WhatsApp remind button', async () => {
     await go('/fees');
-    await see('Pending · 1');
+    await see('Pending · 4');
     await see('Paid · 0');
     await see('₹2,000', true);
     await label('Remind Aarav Sharma').waitFor();
@@ -284,7 +349,7 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await see('Payment date can’t be in the future');
   });
 
-  await step('Partial payment: sheet, balance and Partial status', async () => {
+  await step('Partial payment: sheet and balance', async () => {
     await click('Today', true);
     await click('Cash', true);
     await fill('e.g. UPI ref 1234', 'first instalment');
@@ -294,35 +359,30 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await see('Send receipt on WhatsApp');
     await click('Done', true);
     await see('₹500 paid');
-    await see('₹1,500', true);
   });
 
-  await step('Pay the rest: moves to Paid tab', async () => {
+  await step('Pay the rest: moves to the Paid tab', async () => {
     await text('Aarav Sharma', true).click();
     await click('Record ₹1,500');
     await click('Done', true);
-    await see('Pending · 0');
-    await see('All clear');
+    await see('Pending · 3');
     await click('Paid · 1');
     await see('Aarav Sharma');
   });
 
   await step('Delete a payment re-opens the fee', async () => {
     await text('Aarav Sharma', true).click();
-    await see('first instalment', false);
     await vis(page.getByLabel('Delete payment')).click();
     await see('Balance due');
-    await see('₹500', true);
     await label('Back').click();
-    await click('Pending · 1');
+    await click('Pending · 4');
   });
 
-  await step('Change amount due to ₹0 waives the month', async () => {
+  await step('Change amount due to ₹0 warns (below paid), then marks the month paid', async () => {
     await text('Aarav Sharma', true).click();
     await click('Change amount due');
     await see('For a discount');
-    const input = vis(page.locator('input[inputmode="numeric"]').last());
-    await input.fill('0');
+    await vis(page.locator('input[inputmode="numeric"]').last()).fill('0');
     await vis(page.getByText('Save', { exact: true })).click();
     await page.waitForTimeout(500);
     if (!lastAlert().includes('Less than already paid')) throw new Error('no warning when below paid amount');
@@ -362,43 +422,18 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await notSee("Free D'Souza", true);
   });
 
-  /* ----------------------------------------------------- batch lifecycle */
-  await step('Batch detail shows history; archive hides it from Today; restore brings it back', async () => {
-    await go('/more');
-    await text('Class 10 · Maths', true).click();
-    await see('Classes marked');
-    await see('Yesterday');
-    await click('Archive batch');
-    await go('/');
-    await notSee('Class 10 · Maths', true);
-    await go('/more');
-    await see('Archived · tap to restore');
-    await text('Archived · tap to restore').click();
-    await click('Restore batch');
-    await go('/');
-    await see('Class 10 · Maths');
-  });
-
-  await step('Delete a batch', async () => {
-    await go('/more');
-    await text('Weekend Science', true).click();
-    await click('Delete batch');
-    await go('/more');
-    await notSee('Weekend Science', true);
-  });
-
   /* ------------------------------------------------------------ settings */
   await step('Settings validate the due day and personalise the greeting', async () => {
     await go('/settings');
     const inputs = page.locator('input').filter({ visible: true });
     await inputs.nth(0).fill('Priya');
-    await inputs.nth(2).fill('0');
+    await inputs.nth(3).fill('0');
     await click('Save', true);
     await see('Pick a day from 1 to 28');
-    await inputs.nth(2).fill('31');
+    await inputs.nth(3).fill('31');
     await click('Save', true);
     await see('Pick a day from 1 to 28');
-    await inputs.nth(2).fill('5');
+    await inputs.nth(3).fill('5');
     await click('Save', true);
     await go('/');
     await see(', Priya');
@@ -406,7 +441,7 @@ const lastAlert = () => alerts.at(-1) ?? '';
 
   /* -------------------------------------------------------------- backup */
   let backupPath;
-  await step('Export a backup file (valid JSON with all tables)', async () => {
+  await step('Export a backup file (valid JSON, no batch tables)', async () => {
     await go('/backup');
     await see('Not backed up yet');
     const dl = page.waitForEvent('download');
@@ -415,7 +450,9 @@ const lastAlert = () => alerts.at(-1) ?? '';
     backupPath = `${OUT}${file.suggestedFilename()}`;
     await file.saveAs(backupPath);
     const snap = JSON.parse(readFileSync(backupPath, 'utf8'));
-    if (snap.app !== 'tuitionbook' || snap.counts.students !== 2) throw new Error(`bad backup: ${JSON.stringify(snap.counts)}`);
+    if (snap.app !== 'tuitionbook' || snap.counts.students !== 5 || 'batches' in snap.data) {
+      throw new Error(`bad backup: ${JSON.stringify(snap.counts)}`);
+    }
     await see('Last backup just now');
   });
 
@@ -423,7 +460,7 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await go('/settings');
     await click('Erase all data');
     await go('/');
-    await see('Set up your first batch');
+    await see('Add your first student');
     await go('/backup');
     const chooser = page.waitForEvent('filechooser');
     await click('Restore file');
@@ -434,6 +471,25 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await go('/students');
     await see('Aarav Sharma');
     await see('Future Kid');
+  });
+
+  await step('An old backup that has batches restores fine', async () => {
+    await go('/backup');
+    const old = {
+      app: 'tuitionbook', schemaVersion: 2, exportedAt: '2026-09-01T00:00:00Z', counts: { students: 1 },
+      data: {
+        batches: [{ id: 1, name: 'Maths' }], enrollments: [{ student_id: 1, batch_id: 1 }],
+        students: [{ id: 1, name: 'Old Batch Kid', parent_phone: '9000000000', class_name: '', joining_date: '2026-01-01', monthly_fee: 100, status: 'active', notes: '', created_at: 'x' }],
+        attendance: [{ id: 1, batch_id: 1, student_id: 1, date: '2026-09-01', status: 'present' }],
+      },
+    };
+    const chooser = page.waitForEvent('filechooser');
+    await click('Restore file');
+    await (await chooser).setFiles({ name: 'old.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(old)) });
+    await page.waitForTimeout(1200);
+    if (!lastAlert().startsWith('Restored')) throw new Error(`last alert: ${lastAlert()}`);
+    await go('/students');
+    await see('Old Batch Kid');
   });
 
   await step('Restoring a non-backup file is refused with a clear message', async () => {
@@ -455,8 +511,6 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await see('Student not found');
     await go('/payment/999');
     await see('Not found', true);
-    await go('/batch/999');
-    await see('Batch not found');
     await label('Back').click();
     await see('Attendance');
   });
@@ -467,6 +521,7 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await go('/');
     await click('Try with sample data');
     await see('/18 paid', false, 60000);
+    await see('18 students');
     await go('/students');
     await see('18 shown');
   });

@@ -75,6 +75,40 @@ export const MIGRATIONS: string[] = [
   `,
   // v2: month from which fees resume after a student is restored from the archive (null = joining month).
   `ALTER TABLE students ADD COLUMN fees_resume TEXT;`,
+  // v3: no more batches. Attendance is one mark per student per day (with an optional note, e.g. a
+  // leave reason). Holidays get their own table. Existing marks from several batches on the same day
+  // merge to: present if any present, else absent, else leave. Days where every mark was "holiday"
+  // become holidays; any other stray "holiday" marks are dropped.
+  `
+  CREATE TABLE attendance_v3 (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    date       TEXT    NOT NULL,                  -- "YYYY-MM-DD"
+    status     TEXT    NOT NULL,                  -- present | absent | leave
+    note       TEXT    NOT NULL DEFAULT '',       -- e.g. leave reason
+    UNIQUE (student_id, date)
+  );
+  CREATE TABLE holidays (
+    date TEXT PRIMARY KEY NOT NULL,               -- "YYYY-MM-DD"
+    name TEXT NOT NULL DEFAULT ''                 -- e.g. "Diwali"
+  );
+  INSERT INTO holidays (date, name)
+    SELECT date, '' FROM attendance GROUP BY date HAVING SUM(status <> 'holiday') = 0;
+  INSERT INTO attendance_v3 (student_id, date, status)
+    SELECT student_id, date,
+      CASE WHEN SUM(status = 'present') > 0 THEN 'present'
+           WHEN SUM(status = 'absent')  > 0 THEN 'absent'
+           ELSE 'leave' END
+    FROM attendance
+    WHERE date NOT IN (SELECT date FROM holidays)
+    GROUP BY student_id, date HAVING SUM(status <> 'holiday') > 0
+    ORDER BY date, student_id;
+  DROP TABLE attendance;
+  ALTER TABLE attendance_v3 RENAME TO attendance;
+  CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date);
+  DROP TABLE IF EXISTS enrollments;
+  DROP TABLE IF EXISTS batches;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
@@ -82,10 +116,9 @@ export const SCHEMA_VERSION = MIGRATIONS.length;
 /** Tables in dependency order (parents first). Used by backup/restore. */
 export const TABLES = {
   settings: ['key', 'value'],
-  batches: ['id', 'name', 'days', 'start_time', 'default_fee', 'archived', 'created_at'],
   students: ['id', 'name', 'parent_phone', 'class_name', 'joining_date', 'monthly_fee', 'status', 'notes', 'created_at', 'fees_resume'],
-  enrollments: ['student_id', 'batch_id'],
-  attendance: ['id', 'batch_id', 'student_id', 'date', 'status'],
+  attendance: ['id', 'student_id', 'date', 'status', 'note'],
+  holidays: ['date', 'name'],
   fee_dues: ['id', 'student_id', 'month', 'amount_due'],
   payments: ['id', 'fee_due_id', 'amount', 'paid_on', 'mode', 'note', 'created_at'],
 } as const;

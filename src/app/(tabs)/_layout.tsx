@@ -26,7 +26,8 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: c.bg },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Today', tabBarIcon: (p) => <TabIcon on="today" off="today-outline" {...p} /> }} />
+      <Tabs.Screen name="index" options={{ title: 'Today', tabBarIcon: (p) => <TabIcon on="home" off="home-outline" {...p} /> }} />
+      <Tabs.Screen name="calendar" options={{ title: 'Calendar', tabBarIcon: (p) => <TabIcon on="calendar" off="calendar-outline" {...p} /> }} />
       <Tabs.Screen name="students" options={{ title: 'Students', tabBarIcon: (p) => <TabIcon on="people" off="people-outline" {...p} /> }} />
       <Tabs.Screen name="fees" options={{ title: 'Fees', tabBarIcon: (p) => <TabIcon on="wallet" off="wallet-outline" {...p} /> }} />
       <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: (p) => <TabIcon on="grid" off="grid-outline" {...p} /> }} />

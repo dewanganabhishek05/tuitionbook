@@ -52,10 +52,49 @@ export function parseSnapshot(text: string): Snapshot {
     const rows = (s.data as Record<string, unknown>)[t];
     if (rows !== undefined && !Array.isArray(rows)) throw new Error(`Backup is damaged (table ${t}).`);
   }
-  return s as Snapshot;
+  return upgradeSnapshot(s as Snapshot);
 }
 
-/** Replaces every table with the snapshot's rows, in one transaction. Nothing changes if it fails. */
+const RANK: Record<string, number> = { present: 3, absent: 2, leave: 1 };
+
+/**
+ * Backups from before v3 had batches (a student could have several marks on one day, one per
+ * batch) and stored holidays as a "holiday" mark on everyone. Convert them the same way the v3
+ * database migration does: one mark per student per day, and holidays in their own table.
+ */
+export function upgradeSnapshot(snap: Snapshot): Snapshot {
+  if ((snap.schemaVersion ?? 0) >= 3) return snap;
+  const data = snap.data as Record<string, Record<string, unknown>[] | undefined>;
+  const rows = data.attendance ?? [];
+  const holidayDates = new Set<string>();
+  const byDate = new Map<string, Record<string, unknown>[]>();
+  for (const r of rows) {
+    const list = byDate.get(String(r.date)) ?? [];
+    list.push(r);
+    byDate.set(String(r.date), list);
+  }
+  for (const [date, list] of byDate) if (list.every((r) => r.status === 'holiday')) holidayDates.add(date);
+
+  const byDay = new Map<string, Record<string, unknown>>();
+  for (const r of rows) {
+    if (r.status === 'holiday' || holidayDates.has(String(r.date))) continue;
+    const key = `${r.student_id}|${r.date}`;
+    const prev = byDay.get(key);
+    if (!prev || (RANK[String(r.status)] ?? 0) > (RANK[String(prev.status)] ?? 0)) {
+      byDay.set(key, { id: prev?.id ?? r.id, student_id: r.student_id, date: r.date, status: r.status, note: '' });
+    }
+  }
+  const { batches: _b, enrollments: _e, ...rest } = data;
+  return {
+    ...snap,
+    data: {
+      ...rest,
+      attendance: [...byDay.values()],
+      holidays: [...holidayDates].sort().map((date) => ({ date, name: '' })),
+    } as unknown as Snapshot['data'],
+  };
+}
+
 export async function restoreSnapshot(db: SQLiteDatabase, snap: Snapshot) {
   const tables = Object.keys(TABLES) as TableName[];
   const keep = await db.getAllAsync<{ key: string; value: string }>(

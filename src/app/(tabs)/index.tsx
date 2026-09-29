@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { getBatchDays, getSettings, monthSummary } from '../../db/repo';
+import { activeStudentCount, daySummary, getSettings, monthSummary } from '../../db/repo';
 import { seedDemo } from '../../db/seed';
 import { useDb, useLive } from '../../db/live';
-import type { BatchDay } from '../../db/types';
-import { addDays, currentMonth, formatDay, formatLongDate, formatMonth, formatTime, isoWeekday, parseISODate, today, WEEKDAYS } from '../../lib/dates';
+import type { DaySummary } from '../../db/types';
+import { addDays, currentMonth, formatDay, formatLongDate, formatMonth, today } from '../../lib/dates';
 import { pct, rupees } from '../../lib/format';
-import { Badge, Button, Card, Empty, Loading, Progress, Screen, Section, Stat, Text, tap } from '../../ui/kit';
+import { Badge, Button, Card, Empty, Loading, Progress, Screen, Stat, Text, tap } from '../../ui/kit';
 import { useTheme } from '../../ui/theme';
 
 function greeting() {
@@ -21,29 +21,24 @@ export default function TodayScreen() {
   const { c } = useTheme();
   const [date, setDate] = useState(today());
   const [seeding, setSeeding] = useState(false);
-  const days = useLive((d) => getBatchDays(d, date), [date]);
+  const count = useLive(activeStudentCount);
+  const day = useLive((d) => daySummary(d, date), [date]);
   const fees = useLive((d) => monthSummary(d, currentMonth()));
   const settings = useLive(getSettings);
 
   const name = settings.data?.tutor_name?.trim().split(' ')[0];
-  const d = parseISODate(date);
-  const scheduled = days.data?.filter((x) => x.scheduled) ?? [];
-  const others = days.data?.filter((x) => !x.scheduled) ?? [];
 
   return (
-    <Screen
-      subtitle={formatLongDate(today())}
-      title={name ? `${greeting()}, ${name}` : greeting()}
-    >
-      {days.loading ? <Loading /> : days.data!.length === 0 ? (
+    <Screen subtitle={formatLongDate(today())} title={name ? `${greeting()}, ${name}` : greeting()}>
+      {count.loading ? <Loading /> : count.data === 0 ? (
         <Card>
           <Empty
-            icon="school-outline"
-            title="Set up your first batch"
-            body="A batch is a class group, like “Class 10 · Maths · 5 PM”. Add one, then add students to it."
+            icon="people-outline"
+            title="Add your first student"
+            body="Add students with their monthly fee. Then take attendance here every day and track who has paid."
             action={
               <View style={{ gap: 8, alignItems: 'center' }}>
-                <Button label="Create a batch" icon="add" onPress={() => router.push('/batch/form')} />
+                <Button label="Add student" icon="add" onPress={() => router.push('/student/form')} />
                 <Button
                   label="Try with sample data"
                   variant="ghost"
@@ -56,21 +51,7 @@ export default function TodayScreen() {
         </Card>
       ) : (
         <>
-          {fees.data && fees.data.expected > 0 && (
-            <Card onPress={() => router.navigate('/fees')}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <Text v="label" tone="muted">{formatMonth(currentMonth())} fees</Text>
-                <Badge label={`${fees.data.cleared}/${fees.data.students} paid`} tone="neutral" />
-              </View>
-              <View style={{ flexDirection: 'row', marginBottom: 14 }}>
-                <Stat label="Collected" value={rupees(fees.data.collected)} tone="good" />
-                <Stat label="Pending" value={rupees(fees.data.pending)} tone={fees.data.pending > 0 ? 'bad' : undefined} />
-              </View>
-              <Progress value={pct(fees.data.collected, fees.data.expected)} />
-            </Card>
-          )}
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginTop: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 }}>
             <Text v="title">Attendance</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 999, borderWidth: 1, borderColor: c.border }}>
               <Pressable accessibilityLabel="Previous day" hitSlop={6} onPress={() => { tap(); setDate(addDays(date, -1)); }} style={{ padding: 8 }}>
@@ -88,14 +69,20 @@ export default function TodayScreen() {
             </View>
           </View>
 
-          <Section title={scheduled.length ? `Scheduled · ${WEEKDAYS[isoWeekday(date)]} ${d.getDate()}` : 'No classes scheduled this day'}>
-            {scheduled.map((b) => <BatchCard key={b.batch.id} day={b} date={date} />)}
-          </Section>
+          {day.data ? <AttendanceCard day={day.data} /> : <Loading />}
 
-          {others.length > 0 && (
-            <Section title="Other batches">
-              {others.map((b) => <BatchCard key={b.batch.id} day={b} date={date} compact />)}
-            </Section>
+          {fees.data && fees.data.expected > 0 && (
+            <Card onPress={() => router.navigate('/fees')}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <Text v="label" tone="muted">{formatMonth(currentMonth())} fees</Text>
+                <Badge label={`${fees.data.cleared}/${fees.data.students} paid`} tone="neutral" />
+              </View>
+              <View style={{ flexDirection: 'row', marginBottom: 14 }}>
+                <Stat label="Collected" value={rupees(fees.data.collected)} tone="good" />
+                <Stat label="Pending" value={rupees(fees.data.pending)} tone={fees.data.pending > 0 ? 'bad' : undefined} />
+              </View>
+              <Progress value={pct(fees.data.collected, fees.data.expected)} />
+            </Card>
           )}
         </>
       )}
@@ -103,41 +90,73 @@ export default function TodayScreen() {
   );
 }
 
-function BatchCard({ day, date, compact }: { day: BatchDay; date: string; compact?: boolean }) {
+function AttendanceCard({ day }: { day: DaySummary }) {
   const { c } = useTheme();
-  const { batch } = day;
+  const open = () => router.push({ pathname: '/attendance', params: { date: day.date } });
   const done = day.marked > 0;
-  const open = () => router.push({ pathname: '/attendance/[batchId]', params: { batchId: String(batch.id), date } });
 
-  const status = day.holiday
-    ? <Badge label="Holiday" tone="neutral" icon="sunny-outline" />
-    : done
-      ? <Badge label={`${day.present}/${day.marked} present`} tone="good" icon="checkmark" />
-      : <Badge label="Not marked" tone={compact ? 'neutral' : 'warn'} />;
+  if (day.holiday) {
+    return (
+      <Card onPress={() => router.push({ pathname: '/day/[date]', params: { date: day.date } })} style={{ backgroundColor: c.warnSoft, borderColor: c.warnSoft }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Ionicons name="sunny" size={22} color={c.warn} />
+          <View style={{ flex: 1 }}>
+            <Text v="heading">Holiday</Text>
+            {day.holiday_name ? <Text v="caption" tone="muted">{day.holiday_name}</Text> : null}
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={c.muted} />
+        </View>
+      </Card>
+    );
+  }
 
+  if (day.expected === 0 && !done) {
+    return (
+      <Card>
+        <Text v="caption" tone="muted">No students had joined by {formatDay(day.date).toLowerCase()}.</Text>
+      </Card>
+    );
+  }
+
+  if (!done) {
+    return (
+      <Card onPress={open}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <View style={{ flex: 1, gap: 6 }}>
+            <Text v="heading">{day.expected} {day.expected === 1 ? 'student' : 'students'}</Text>
+            <View style={{ flexDirection: 'row' }}><Badge label="Not marked" tone="warn" /></View>
+          </View>
+          <View style={{ height: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: c.accent, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="checkmark-done" size={18} color={c.accentText} />
+            <Text v="label" tone="onAccent">Take attendance</Text>
+          </View>
+        </View>
+      </Card>
+    );
+  }
+
+  const items: [string, number, string][] = [
+    ['Present', day.present, c.good], ['Absent', day.absent, c.bad], ['Leave', day.leave, c.warn],
+  ];
   return (
-    <Card onPress={open} style={compact ? { paddingVertical: 12 } : undefined}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        {!compact && (
-          <View style={{ width: 56, alignItems: 'flex-start' }}>
-            <Text v="heading">{formatTime(batch.start_time).split(' ')[0] || '—'}</Text>
-            <Text v="caption" tone="muted">{formatTime(batch.start_time).split(' ')[1] ?? ''}</Text>
-          </View>
-        )}
-        <View style={{ flex: 1, gap: 6 }}>
-          <Text v="heading" numberOfLines={1}>{batch.name}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Text v="caption" tone="muted">{batch.student_count} students</Text>
-            {status}
-          </View>
-        </View>
-        <View style={{
-          width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
-          backgroundColor: done ? c.surface2 : c.accent,
-        }}>
-          <Ionicons name={done ? 'create-outline' : 'checkmark-done'} size={20} color={done ? c.text : c.accentText} />
-        </View>
+    <Card onPress={open}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <Badge label={`${day.present}/${day.marked} present`} tone="good" icon="checkmark" />
+        <Text v="label" tone="accent">Edit</Text>
       </View>
+      <View style={{ flexDirection: 'row' }}>
+        {items.map(([label, n, color]) => (
+          <View key={label} style={{ flex: 1 }}>
+            <Text v="number" style={{ color }}>{String(n)}</Text>
+            <Text v="caption" tone="muted">{label}</Text>
+          </View>
+        ))}
+      </View>
+      {day.marked < day.expected && (
+        <Text v="caption" tone="warn" style={{ marginTop: 10 }}>
+          {day.expected - day.marked} not marked yet — tap to finish
+        </Text>
+      )}
     </Card>
   );
 }

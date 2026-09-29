@@ -8,7 +8,7 @@ import type { PaymentMode } from '../../db/types';
 import { addDays, formatDate, formatMonth, isValidISODate, today } from '../../lib/dates';
 import { openWhatsApp, rupees } from '../../lib/format';
 import { FEE_BADGE, MODE_LABEL } from '../../ui/fee';
-import {
+import { goBack,
   Badge, Button, Card, Chip, Divider, Field, Footer, IconButton, Loading, Row, Screen, Section, Segmented, Sheet, Text, confirm, notify } from '../../ui/kit';
 import { useTheme } from '../../ui/theme';
 
@@ -164,7 +164,7 @@ export default function PaymentScreen() {
         {f.parent_phone ? (
           <Button label="Send receipt on WhatsApp" icon="logo-whatsapp" variant="secondary" onPress={() => receipt && sendReceipt(receipt)} />
         ) : null}
-        <Button label="Done" onPress={() => { setReceipt(null); router.back(); }} />
+        <Button label="Done" onPress={() => { setReceipt(null); goBack(); }} />
       </Sheet>
 
       <Sheet visible={editDue} onClose={() => setEditDue(false)} title="Change amount due">

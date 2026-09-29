@@ -12,6 +12,12 @@ import { font, radius, toneColors, useTheme, type Tone } from './theme';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
+/** Back if there is somewhere to go back to, otherwise home (e.g. after opening a deep link). */
+export function goBack() {
+  if (router.canGoBack()) router.back();
+  else router.replace('/');
+}
+
 export function tap() {
   if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
 }
@@ -60,7 +66,7 @@ export function Screen({
     <View style={{ paddingHorizontal: 20, paddingTop: back ? 4 : 12, paddingBottom: 12 }}>
       {back && (
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, marginLeft: -8 }}>
-          <IconButton name="chevron-back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} label="Back" />
+          <IconButton name="chevron-back" onPress={goBack} label="Back" />
           {right}
         </View>
       )}

@@ -107,7 +107,7 @@ function FeeItem({ row: r, settings }: { row: FeeRow; settings: Settings }) {
   const from = settings.center_name || settings.tutor_name || 'your tutor';
   const subtitle = st === 'paid'
     ? `${rupees(r.amount_due)}${r.last_paid_on ? ` · paid ${formatDate(r.last_paid_on)}` : ''}`
-    : `${r.paid > 0 ? `${rupees(r.paid)} paid · ` : ''}${late ? `${late} days overdue` : r.batch_names ?? ''}`;
+    : `${r.paid > 0 ? `${rupees(r.paid)} paid · ` : ''}${late ? `${late} days overdue` : r.class_name}`;
 
   return (
     <Row

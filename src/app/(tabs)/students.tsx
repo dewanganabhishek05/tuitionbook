@@ -3,24 +3,22 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { listBatches, listStudents } from '../../db/repo';
+import { listStudents } from '../../db/repo';
 import { useLive } from '../../db/live';
 import { rupees } from '../../lib/format';
 import { Avatar, Badge, Button, Card, Chip, ChipRow, Divider, Empty, Fab, Loading, Row, Text } from '../../ui/kit';
 import { font, radius, useTheme } from '../../ui/theme';
 
-type Filter = { kind: 'all' } | { kind: 'batch'; id: number } | { kind: 'pending' } | { kind: 'archived' };
+type Filter = { kind: 'all' } | { kind: 'pending' } | { kind: 'archived' };
 
 export default function StudentsScreen() {
   const { c } = useTheme();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>({ kind: 'all' });
-  const batches = useLive((d) => listBatches(d));
   const students = useLive(
     (d) => listStudents(d, {
       search,
       status: filter.kind === 'archived' ? 'archived' : 'active',
-      batchId: filter.kind === 'batch' ? filter.id : null,
     }),
     [search, filter],
   );
@@ -42,7 +40,7 @@ export default function StudentsScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search name or phone"
+            placeholder="Search name, phone or class"
             placeholderTextColor={c.faint}
             style={{ flex: 1, color: c.text, fontFamily: font.regular, fontSize: 15, height: '100%' }}
           />
@@ -53,9 +51,6 @@ export default function StudentsScreen() {
         <ChipRow>
           <Chip label="All" selected={is({ kind: 'all' })} onPress={() => setFilter({ kind: 'all' })} />
           <Chip label="Fee pending" selected={is({ kind: 'pending' })} onPress={() => setFilter({ kind: 'pending' })} />
-          {batches.data?.map((b) => (
-            <Chip key={b.id} label={b.name} selected={is({ kind: 'batch', id: b.id })} onPress={() => setFilter({ kind: 'batch', id: b.id })} />
-          ))}
           <Chip label="Archived" selected={is({ kind: 'archived' })} onPress={() => setFilter({ kind: 'archived' })} />
         </ChipRow>
       </View>
@@ -92,7 +87,7 @@ export default function StudentsScreen() {
                 <Row
                   left={<Avatar name={s.name} />}
                   title={s.name}
-                  subtitle={s.batch_names || 'No batch'}
+                  subtitle={s.class_name || s.parent_phone}
                   right={s.outstanding > 0
                     ? <Badge label={`${rupees(s.outstanding)} due`} tone="bad" />
                     : s.monthly_fee > 0 ? <Badge label="Paid" tone="good" icon="checkmark" /> : null}

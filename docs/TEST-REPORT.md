@@ -2,6 +2,20 @@
 
 **Date:** 29 Sep 2026 · **Build:** Expo SDK 57 / React Native 0.86 · **Result:** 50/50 data tests, 35/35 UI flows, and the Android emulator run all passing
 
+## v1.1.0: no batches, new Calendar
+
+| Check | Result |
+|---|---|
+| Data tests (`npm test`) | 50/50 pass. New: upgrading from the v2 (batches) database, restoring old backups with batches, holidays on any date (including future ones), planned leave with a reason, month calendar counts |
+| UI flows (`tests/e2e/flows.mjs`) | 39/39 pass. New: no-setup start, Save & add another, default fee, the Calendar tab, the day screen (rename and remove a holiday, leave with a reason on past and future days, a named holiday) |
+| Typecheck and lint | Clean |
+
+**Bugs found and fixed while testing v1.1.0:**
+- Today showed "Not marked" on a holiday. It now checks for a holiday first and shows its name.
+- Saving a screen opened from a link crashed trying to go back when there was nothing to go back to. Screens now fall back to the home screen.
+
+**Upgrading from 1.0:** batches are removed automatically. Each student's marks from several batches on one day merge into one: Present if they attended any class, otherwise Absent, then Leave. Days where everyone was marked Holiday become holidays. Fees and payments are untouched.
+
 ## How it was tested
 
 | Layer | What | How | Result |

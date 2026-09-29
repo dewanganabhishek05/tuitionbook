@@ -1,11 +1,11 @@
 // All reads and writes go through here. Every mutation calls notifyChange() so live queries refresh.
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { transaction } from './tx';
-import { currentMonth, daysBetween, isoWeekday, monthOf, monthRange, today } from '../lib/dates';
+import { currentMonth, daysBetween, daysInMonth, monthOf, monthRange, today } from '../lib/dates';
 import { notifyChange } from './live';
 import type {
-  AttendanceStatus, Batch, BatchDay, BatchWithCount, FeeRow, FeeStatus, Payment, PaymentMode,
-  RollEntry, Settings, Student, StudentListItem,
+  AttendanceStatus, CalendarDay, DaySummary, FeeRow, FeeStatus, Holiday, Payment, PaymentMode, RollEntry,
+  Settings, Student, StudentListItem,
 } from './types';
 
 const now = () => new Date().toISOString();
@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
   tutor_name: '',
   center_name: '',
   fee_due_day: 10,
+  default_fee: 0,
   country_code: '91',
   last_backup_at: '',
   last_backup_where: '',
@@ -26,6 +27,7 @@ export async function getSettings(db: SQLiteDatabase): Promise<Settings> {
   const s: Settings = { ...DEFAULT_SETTINGS };
   for (const r of rows) {
     if (r.key === 'fee_due_day') s.fee_due_day = Number(r.value) || DEFAULT_SETTINGS.fee_due_day;
+    else if (r.key === 'default_fee') s.default_fee = Math.max(0, Math.floor(Number(r.value) || 0));
     else if (r.key in s) (s as unknown as Record<string, string>)[r.key] = r.value ?? '';
   }
   return s;
@@ -41,77 +43,21 @@ export async function setSettings(db: SQLiteDatabase, patch: Partial<Settings>) 
   notifyChange();
 }
 
-/* ------------------------------------------------------------------- batches */
-
-export async function listBatches(db: SQLiteDatabase, includeArchived = false): Promise<BatchWithCount[]> {
-  return db.getAllAsync<BatchWithCount>(
-    `SELECT b.*, (SELECT COUNT(*) FROM enrollments e JOIN students s ON s.id = e.student_id
-                  WHERE e.batch_id = b.id AND s.status = 'active') AS student_count
-     FROM batches b ${includeArchived ? '' : 'WHERE b.archived = 0'}
-     ORDER BY b.archived, b.start_time, b.name`,
-  );
-}
-
-export async function getBatch(db: SQLiteDatabase, id: number) {
-  return db.getFirstAsync<Batch>('SELECT * FROM batches WHERE id = ?', id);
-}
-
-export async function saveBatch(
-  db: SQLiteDatabase,
-  b: { id?: number; name: string; days: number[]; start_time: string; default_fee: number },
-): Promise<number> {
-  const days = [...new Set(b.days)].sort().join(',');
-  if (b.id) {
-    await db.runAsync(
-      'UPDATE batches SET name = ?, days = ?, start_time = ?, default_fee = ? WHERE id = ?',
-      b.name.trim(), days, b.start_time, b.default_fee, b.id,
-    );
-    notifyChange();
-    return b.id;
-  }
-  const r = await db.runAsync(
-    'INSERT INTO batches (name, days, start_time, default_fee, created_at) VALUES (?, ?, ?, ?, ?)',
-    b.name.trim(), days, b.start_time, b.default_fee, now(),
-  );
-  notifyChange();
-  return r.lastInsertRowId;
-}
-
-export async function setBatchArchived(db: SQLiteDatabase, id: number, archived: boolean) {
-  await db.runAsync('UPDATE batches SET archived = ? WHERE id = ?', archived ? 1 : 0, id);
-  notifyChange();
-}
-
-export async function deleteBatch(db: SQLiteDatabase, id: number) {
-  await db.runAsync('DELETE FROM batches WHERE id = ?', id);
-  notifyChange();
-}
-
-export function batchDays(b: Pick<Batch, 'days'>): number[] {
-  return b.days ? b.days.split(',').map(Number).filter(Boolean) : [];
-}
-
 /* ------------------------------------------------------------------ students */
 
 export async function listStudents(
   db: SQLiteDatabase,
-  opts: { status?: 'active' | 'archived'; batchId?: number | null; search?: string } = {},
+  opts: { status?: 'active' | 'archived'; search?: string } = {},
 ): Promise<StudentListItem[]> {
   const where: string[] = ['s.status = ?'];
   const params: (string | number)[] = [opts.status ?? 'active'];
-  if (opts.batchId) {
-    where.push('EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = s.id AND e.batch_id = ?)');
-    params.push(opts.batchId);
-  }
   if (opts.search?.trim()) {
-    where.push("(s.name LIKE ? ESCAPE '\\' OR s.parent_phone LIKE ? ESCAPE '\\')");
+    where.push("(s.name LIKE ? ESCAPE '\\' OR s.parent_phone LIKE ? ESCAPE '\\' OR s.class_name LIKE ? ESCAPE '\\')");
     const q = `%${opts.search.trim().replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
-    params.push(q, q);
+    params.push(q, q, q);
   }
   return db.getAllAsync<StudentListItem>(
     `SELECT s.*,
-       (SELECT group_concat(b.name, ' · ') FROM enrollments e JOIN batches b ON b.id = e.batch_id
-         WHERE e.student_id = s.id) AS batch_names,
        (SELECT COALESCE(SUM(MAX(0, d.amount_due - COALESCE(
            (SELECT SUM(p.amount) FROM payments p WHERE p.fee_due_id = d.id), 0))), 0)
          FROM fee_dues d WHERE d.student_id = s.id) AS outstanding
@@ -121,14 +67,13 @@ export async function listStudents(
   );
 }
 
+export async function activeStudentCount(db: SQLiteDatabase): Promise<number> {
+  const r = await db.getFirstAsync<{ n: number }>("SELECT COUNT(*) AS n FROM students WHERE status = 'active'");
+  return r?.n ?? 0;
+}
+
 export async function getStudent(db: SQLiteDatabase, id: number) {
-  const student = await db.getFirstAsync<Student>('SELECT * FROM students WHERE id = ?', id);
-  if (!student) return null;
-  const batches = await db.getAllAsync<Batch>(
-    `SELECT b.* FROM batches b JOIN enrollments e ON e.batch_id = b.id WHERE e.student_id = ? ORDER BY b.start_time`,
-    id,
-  );
-  return { student, batches };
+  return db.getFirstAsync<Student>('SELECT * FROM students WHERE id = ?', id);
 }
 
 export interface StudentInput {
@@ -139,7 +84,6 @@ export interface StudentInput {
   joining_date: string;
   monthly_fee: number;
   notes: string;
-  batchIds: number[];
 }
 
 export async function saveStudent(db: SQLiteDatabase, s: StudentInput): Promise<number> {
@@ -172,7 +116,6 @@ export async function saveStudent(db: SQLiteDatabase, s: StudentInput): Promise<
            AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.fee_due_id = fee_dues.id)`,
         id, monthOf(s.joining_date), s.monthly_fee, cm,
       );
-      await tx.runAsync('DELETE FROM enrollments WHERE student_id = ?', id);
     } else {
       const r = await tx.runAsync(
         `INSERT INTO students (name, parent_phone, class_name, joining_date, monthly_fee, notes, created_at)
@@ -180,9 +123,6 @@ export async function saveStudent(db: SQLiteDatabase, s: StudentInput): Promise<
         s.name.trim(), s.parent_phone.trim(), s.class_name.trim(), s.joining_date, s.monthly_fee, s.notes.trim(), now(),
       );
       id = r.lastInsertRowId;
-    }
-    for (const b of new Set(s.batchIds)) {
-      await tx.runAsync('INSERT OR IGNORE INTO enrollments (student_id, batch_id) VALUES (?, ?)', id, b);
     }
   });
   await ensureDues(db, id, true); // full fill, so an earlier joining date gets its missing months
@@ -208,61 +148,138 @@ export async function deleteStudent(db: SQLiteDatabase, id: number) {
 
 /* ---------------------------------------------------------------- attendance */
 
-export async function getRoll(db: SQLiteDatabase, batchId: number, date: string): Promise<RollEntry[]> {
-  // Active students in the batch, plus anyone who already has a record that day (e.g. archived since).
+/** Everyone who had joined by `date` and is active, plus anyone already marked that day. */
+export async function getRoll(db: SQLiteDatabase, date: string): Promise<RollEntry[]> {
   return db.getAllAsync<RollEntry>(
-    `SELECT s.id AS student_id, s.name, s.parent_phone, a.status
+    `SELECT s.id AS student_id, s.name, s.parent_phone, s.class_name, s.joining_date, a.status, a.note
      FROM students s
-     LEFT JOIN attendance a ON a.student_id = s.id AND a.batch_id = ? AND a.date = ?
-     WHERE (s.status = 'active' AND s.joining_date <= ?
-            AND EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = s.id AND e.batch_id = ?))
-        OR a.id IS NOT NULL
+     LEFT JOIN attendance a ON a.student_id = s.id AND a.date = ?
+     WHERE (s.status = 'active' AND s.joining_date <= ?) OR a.id IS NOT NULL
      ORDER BY s.name COLLATE NOCASE`,
-    batchId, date, date, batchId,
+    date, date,
   );
 }
 
+/** Saves the day's roll (a normal class day: removes any holiday on that date). */
 export async function saveRoll(
-  db: SQLiteDatabase, batchId: number, date: string,
-  entries: { student_id: number; status: AttendanceStatus }[],
+  db: SQLiteDatabase, date: string, entries: { student_id: number; status: AttendanceStatus }[],
 ) {
   await transaction(db, async (tx) => {
+    await tx.runAsync('DELETE FROM holidays WHERE date = ?', date);
     for (const e of entries) {
       await tx.runAsync(
-        `INSERT INTO attendance (batch_id, student_id, date, status) VALUES (?, ?, ?, ?)
-         ON CONFLICT(batch_id, student_id, date) DO UPDATE SET status = excluded.status`,
-        batchId, e.student_id, date, e.status,
+        `INSERT INTO attendance (student_id, date, status) VALUES (?, ?, ?)
+         ON CONFLICT(student_id, date) DO UPDATE SET status = excluded.status`,
+        e.student_id, date, e.status,
       );
     }
   });
   notifyChange();
 }
 
-export async function clearRoll(db: SQLiteDatabase, batchId: number, date: string) {
-  await db.runAsync('DELETE FROM attendance WHERE batch_id = ? AND date = ?', batchId, date);
+/** Sets (or clears, with status null) one student's mark for a day, e.g. leave with a reason. */
+export async function setMark(
+  db: SQLiteDatabase, date: string, studentId: number, status: AttendanceStatus | null, note = '',
+) {
+  if (status && status !== 'leave' && date > today()) throw new Error('Only leave can be added for a future date.');
+  if (status === null) {
+    await db.runAsync('DELETE FROM attendance WHERE student_id = ? AND date = ?', studentId, date);
+  } else {
+    await db.runAsync(
+      `INSERT INTO attendance (student_id, date, status, note) VALUES (?, ?, ?, ?)
+       ON CONFLICT(student_id, date) DO UPDATE SET status = excluded.status, note = excluded.note`,
+      studentId, date, status, note.trim(),
+    );
+  }
   notifyChange();
 }
 
-export async function getBatchDays(db: SQLiteDatabase, date: string): Promise<BatchDay[]> {
-  const batches = await listBatches(db);
-  const counts = await db.getAllAsync<{ batch_id: number; status: AttendanceStatus; n: number }>(
-    'SELECT batch_id, status, COUNT(*) AS n FROM attendance WHERE date = ? GROUP BY batch_id, status',
+/** Clears the day completely: marks and holiday. */
+export async function clearRoll(db: SQLiteDatabase, date: string) {
+  await transaction(db, async (tx) => {
+    await tx.runAsync('DELETE FROM attendance WHERE date = ?', date);
+    await tx.runAsync('DELETE FROM holidays WHERE date = ?', date);
+  });
+  notifyChange();
+}
+
+/** Marks a day as a holiday (any date, including future ones). Marks for that day are removed. */
+export async function setHoliday(db: SQLiteDatabase, date: string, name = '') {
+  await transaction(db, async (tx) => {
+    await tx.runAsync('DELETE FROM attendance WHERE date = ?', date);
+    await tx.runAsync(
+      'INSERT INTO holidays (date, name) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET name = excluded.name',
+      date, name.trim(),
+    );
+  });
+  notifyChange();
+}
+
+export async function removeHoliday(db: SQLiteDatabase, date: string) {
+  await db.runAsync('DELETE FROM holidays WHERE date = ?', date);
+  notifyChange();
+}
+
+export async function getHoliday(db: SQLiteDatabase, date: string) {
+  return db.getFirstAsync<Holiday>('SELECT date, name FROM holidays WHERE date = ?', date);
+}
+
+export async function listHolidays(db: SQLiteDatabase, from: string, to: string) {
+  return db.getAllAsync<Holiday>('SELECT date, name FROM holidays WHERE date BETWEEN ? AND ? ORDER BY date', from, to);
+}
+
+export async function daySummary(db: SQLiteDatabase, date: string): Promise<DaySummary> {
+  const c = await db.getFirstAsync<{ marked: number; present: number; absent: number; leave: number }>(
+    `SELECT COUNT(*) AS marked, COALESCE(SUM(status = 'present'), 0) AS present,
+       COALESCE(SUM(status = 'absent'), 0) AS absent, COALESCE(SUM(status = 'leave'), 0) AS leave
+     FROM attendance WHERE date = ?`,
     date,
   );
-  const wd = isoWeekday(date);
-  return batches.map((batch) => {
-    const c = counts.filter((x) => x.batch_id === batch.id);
-    const get = (s: AttendanceStatus) => c.find((x) => x.status === s)?.n ?? 0;
-    const marked = c.reduce((a, x) => a + x.n, 0);
-    return {
-      batch,
-      scheduled: batchDays(batch).includes(wd),
-      marked,
-      present: get('present'),
-      absent: get('absent'),
-      holiday: marked > 0 && get('holiday') === marked,
-    };
-  });
+  const e = await db.getFirstAsync<{ n: number }>(
+    "SELECT COUNT(*) AS n FROM students WHERE status = 'active' AND joining_date <= ?", date,
+  );
+  const h = await getHoliday(db, date);
+  return {
+    date,
+    expected: e?.n ?? 0,
+    marked: c?.marked ?? 0,
+    present: c?.present ?? 0,
+    absent: c?.absent ?? 0,
+    leave: c?.leave ?? 0,
+    holiday: !!h,
+    holiday_name: h?.name ?? '',
+  };
+}
+
+/** One entry per day of the month, for the calendar grid. */
+export async function monthCalendar(db: SQLiteDatabase, month: string): Promise<CalendarDay[]> {
+  const counts = await db.getAllAsync<{ date: string; marked: number; present: number; absent: number; leave: number }>(
+    `SELECT date, COUNT(*) AS marked, SUM(status = 'present') AS present, SUM(status = 'absent') AS absent,
+       SUM(status = 'leave') AS leave
+     FROM attendance WHERE date LIKE ? GROUP BY date`,
+    `${month}-%`,
+  );
+  const holidays = await listHolidays(db, `${month}-01`, `${month}-31`);
+  const joins = await db.getAllAsync<{ joining_date: string }>(
+    "SELECT joining_date FROM students WHERE status = 'active' ORDER BY joining_date",
+  );
+  const byDate = new Map(counts.map((r) => [r.date, r]));
+  const hol = new Map(holidays.map((h) => [h.date, h]));
+  const days: CalendarDay[] = [];
+  for (let d = 1; d <= daysInMonth(month); d++) {
+    const date = `${month}-${String(d).padStart(2, '0')}`;
+    const c = byDate.get(date);
+    days.push({
+      date,
+      expected: joins.filter((j) => j.joining_date <= date).length,
+      marked: c?.marked ?? 0,
+      present: c?.present ?? 0,
+      absent: c?.absent ?? 0,
+      leave: c?.leave ?? 0,
+      holiday: hol.get(date) ?? null,
+    });
+  }
+  return days;
 }
 
 export interface AttendanceStats { present: number; absent: number; leave: number; percent: number }
@@ -276,35 +293,28 @@ function stats(rows: { status: AttendanceStatus; n: number }[]): AttendanceStats
 }
 
 export async function studentMonthAttendance(db: SQLiteDatabase, studentId: number, month: string) {
-  const days = await db.getAllAsync<{ date: string; status: AttendanceStatus; batch_name: string }>(
-    `SELECT a.date, a.status, b.name AS batch_name FROM attendance a JOIN batches b ON b.id = a.batch_id
-     WHERE a.student_id = ? AND a.date LIKE ? ORDER BY a.date`,
+  const days = await db.getAllAsync<{ date: string; status: AttendanceStatus; note: string }>(
+    'SELECT date, status, note FROM attendance WHERE student_id = ? AND date LIKE ? ORDER BY date',
     studentId, `${month}-%`,
   );
   const grouped = await db.getAllAsync<{ status: AttendanceStatus; n: number }>(
     'SELECT status, COUNT(*) AS n FROM attendance WHERE student_id = ? AND date LIKE ? GROUP BY status',
     studentId, `${month}-%`,
   );
-  return { days, stats: stats(grouped) };
+  const holidays = await listHolidays(db, `${month}-01`, `${month}-31`);
+  return { days, holidays, stats: stats(grouped) };
 }
 
-export async function batchMonthAttendance(db: SQLiteDatabase, batchId: number, month: string) {
-  const dates = await db.getAllAsync<{ date: string; present: number; absent: number; holiday: number; total: number }>(
-    `SELECT date,
-       SUM(status = 'present') AS present, SUM(status = 'absent') AS absent,
-       SUM(status = 'holiday') AS holiday, COUNT(*) AS total
-     FROM attendance WHERE batch_id = ? AND date LIKE ? GROUP BY date ORDER BY date DESC`,
-    batchId, `${month}-%`,
-  );
-  const students = await db.getAllAsync<{ id: number; name: string; present: number; absent: number }>(
+/** Each active student's totals for a month. */
+export async function monthStudentStats(db: SQLiteDatabase, month: string) {
+  return db.getAllAsync<{ id: number; name: string; present: number; absent: number; leave: number }>(
     `SELECT s.id, s.name,
-       COALESCE(SUM(a.status = 'present'), 0) AS present, COALESCE(SUM(a.status = 'absent'), 0) AS absent
-     FROM students s JOIN enrollments e ON e.student_id = s.id AND e.batch_id = ?
-     LEFT JOIN attendance a ON a.student_id = s.id AND a.batch_id = e.batch_id AND a.date LIKE ?
+       COALESCE(SUM(a.status = 'present'), 0) AS present, COALESCE(SUM(a.status = 'absent'), 0) AS absent,
+       COALESCE(SUM(a.status = 'leave'), 0) AS leave
+     FROM students s LEFT JOIN attendance a ON a.student_id = s.id AND a.date LIKE ?
      WHERE s.status = 'active' GROUP BY s.id ORDER BY s.name COLLATE NOCASE`,
-    batchId, `${month}-%`,
+    `${month}-%`,
   );
-  return { dates, students };
 }
 
 /* ---------------------------------------------------------------------- fees */
@@ -346,9 +356,7 @@ export async function ensureDues(db: SQLiteDatabase, studentId?: number, full = 
 const FEE_ROW_SELECT = `
   SELECT d.id, d.student_id, d.month, d.amount_due, s.name, s.parent_phone,
     COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.fee_due_id = d.id), 0) AS paid,
-    (SELECT MAX(p.paid_on) FROM payments p WHERE p.fee_due_id = d.id) AS last_paid_on,
-    (SELECT group_concat(b.name, ' · ') FROM enrollments e JOIN batches b ON b.id = e.batch_id
-      WHERE e.student_id = s.id) AS batch_names
+    (SELECT MAX(p.paid_on) FROM payments p WHERE p.fee_due_id = d.id) AS last_paid_on, s.class_name
   FROM fee_dues d JOIN students s ON s.id = d.student_id`;
 
 export async function listFeesForMonth(db: SQLiteDatabase, month: string): Promise<FeeRow[]> {

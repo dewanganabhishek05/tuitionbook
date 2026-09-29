@@ -2,16 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { clearRoll, getBatch, getRoll, getSettings, saveRoll } from '../../db/repo';
-import { useDb, useLive } from '../../db/live';
-import type { AttendanceStatus, RollEntry } from '../../db/types';
-import { formatDate, formatDay, today } from '../../lib/dates';
-import { openWhatsApp } from '../../lib/format';
-import {
-  Avatar, Button, Card, Chip, Divider, Empty, Footer, IconButton, Loading, Screen, Sheet, Text, confirm, tap, notify } from '../../ui/kit';
-import { font, useTheme } from '../../ui/theme';
+import { clearRoll, getHoliday, getRoll, getSettings, saveRoll, setHoliday as saveHoliday } from '../db/repo';
+import { useDb, useLive } from '../db/live';
+import type { AttendanceStatus, RollEntry } from '../db/types';
+import { formatDate, formatDay, today } from '../lib/dates';
+import { openWhatsApp } from '../lib/format';
+import { goBack,
+  Avatar, Button, Card, Chip, Divider, Empty, Footer, IconButton, Loading, Screen, Sheet, Text, confirm, tap, notify } from '../ui/kit';
+import { font, useTheme } from '../ui/theme';
 
-type Mark = Exclude<AttendanceStatus, 'holiday'>;
+type Mark = AttendanceStatus;
 const MARKS: { key: Mark; short: string; label: string }[] = [
   { key: 'present', short: 'P', label: 'Present' },
   { key: 'absent', short: 'A', label: 'Absent' },
@@ -20,12 +20,11 @@ const MARKS: { key: Mark; short: string; label: string }[] = [
 
 export default function RollCall() {
   const db = useDb();
-  const { batchId, date: dateParam } = useLocalSearchParams<{ batchId: string; date?: string }>();
-  const id = Number(batchId);
-  const date = dateParam || today();
+  const { date: dateParam } = useLocalSearchParams<{ date?: string }>();
+  const date = dateParam && dateParam <= today() ? dateParam : today();
 
-  const batch = useLive((d) => getBatch(d, id), [id]);
-  const roll = useLive((d) => getRoll(d, id, date), [id, date]);
+  const roll = useLive((d) => getRoll(d, date), [date]);
+  const hol = useLive(async (d) => (await getHoliday(d, date)) ?? false, [date]);
   const settings = useLive(getSettings);
 
   // What's saved (everyone Present by default), plus the tutor's unsaved taps on top.
@@ -34,13 +33,13 @@ export default function RollCall() {
   const [saving, setSaving] = useState(false);
   const [absentees, setAbsentees] = useState<RollEntry[] | null>(null);
 
-  const alreadyMarked = !!roll.data?.some((r) => r.status);
+  const alreadyMarked = !!roll.data?.some((r) => r.status) || !!hol.data;
   const marks = useMemo(() => {
     const m: Record<number, Mark> = {};
-    for (const r of roll.data ?? []) m[r.student_id] = r.status && r.status !== 'holiday' ? r.status : 'present';
+    for (const r of roll.data ?? []) m[r.student_id] = r.status ?? 'present';
     return { ...m, ...overrides };
   }, [roll.data, overrides]);
-  const holiday = holidayOverride ?? (!!roll.data?.length && roll.data.every((r) => r.status === 'holiday'));
+  const holiday = holidayOverride ?? !!hol.data;
   const setMarks = (fn: (m: Record<number, Mark>) => Record<number, Mark>) => setOverrides(fn);
 
   const counts = useMemo(() => {
@@ -58,12 +57,11 @@ export default function RollCall() {
     if (!roll.data) return;
     setSaving(true);
     try {
-      await saveRoll(db, id, date, roll.data.map((r) => ({
-        student_id: r.student_id, status: holiday ? 'holiday' : marks[r.student_id] ?? 'present',
-      })));
+      if (holiday) await saveHoliday(db, date, hol.data ? hol.data.name : '');
+      else await saveRoll(db, date, roll.data.map((r) => ({ student_id: r.student_id, status: marks[r.student_id] ?? 'present' })));
       const absent = holiday ? [] : roll.data.filter((r) => marks[r.student_id] === 'absent' && r.parent_phone);
       if (absent.length) setAbsentees(absent);
-      else router.back();
+      else goBack();
     } catch (e) {
       notify('Could not save', (e as Error).message);
     } finally {
@@ -73,21 +71,20 @@ export default function RollCall() {
 
   const clear = async () => {
     if (await confirm('Clear attendance?', `Remove all marks for ${formatDate(date)}?`, 'Clear', true)) {
-      await clearRoll(db, id, date);
-      router.back();
+      await clearRoll(db, date);
+      goBack();
     }
   };
 
-  if (!batch.data || !roll.data) return <Screen back><Loading /></Screen>;
+  if (!roll.data || hol.data === undefined) return <Screen back><Loading /></Screen>;
 
-  const b = batch.data;
   const tutor = settings.data?.center_name || settings.data?.tutor_name || 'your tutor';
 
   return (
     <Screen
       back
       subtitle={formatDay(date) === 'Today' ? `Today · ${formatDate(date)}` : formatDate(date)}
-      title={b.name}
+      title="Attendance"
       right={alreadyMarked ? <IconButton name="trash-outline" label="Clear attendance" onPress={clear} /> : undefined}
       scroll={false}
       footer={roll.data.length > 0 && (
@@ -107,11 +104,11 @@ export default function RollCall() {
           <Card>
             <Empty
               icon="people-outline"
-              title={date < today() ? 'No students on this date' : 'No students in this batch'}
+              title={date < today() ? 'No students on this date' : 'No students yet'}
               body={date < today()
                 ? 'Only students who had joined by this date are listed. Check joining dates if someone is missing.'
-                : 'Add students and choose this batch for them.'}
-              action={<Button label="Add student" icon="add" onPress={() => router.push({ pathname: '/student/form', params: { batchId: String(id) } })} />}
+                : 'Add your students first, then take attendance here every day.'}
+              action={<Button label="Add student" icon="add" onPress={() => router.push('/student/form')} />}
             />
           </Card>
         </View>
@@ -129,7 +126,7 @@ export default function RollCall() {
         </>
       )}
 
-      <Sheet visible={!!absentees} onClose={() => { setAbsentees(null); router.back(); }} title="Tell parents?">
+      <Sheet visible={!!absentees} onClose={() => { setAbsentees(null); goBack(); }} title="Tell parents?">
         <Text v="caption" tone="muted">
           Saved. Send a quick WhatsApp note to the parents of students who were absent.
         </Text>
@@ -144,7 +141,7 @@ export default function RollCall() {
                   size="sm" variant="secondary" icon="logo-whatsapp" label="Send"
                   onPress={() => openWhatsApp(
                     s.parent_phone,
-                    `Hello, this is to inform you that ${s.name} was absent from ${b.name} on ${formatDate(date)}. — ${tutor}`,
+                    `Hello, this is to inform you that ${s.name} was absent from tuition on ${formatDate(date)}. — ${tutor}`,
                     settings.data?.country_code,
                   )}
                 />
@@ -152,7 +149,7 @@ export default function RollCall() {
             </View>
           ))}
         </Card>
-        <Button label="Done" onPress={() => { setAbsentees(null); router.back(); }} />
+        <Button label="Done" onPress={() => { setAbsentees(null); goBack(); }} />
       </Sheet>
     </Screen>
   );
@@ -204,7 +201,12 @@ function RollList({ roll, marks, disabled, onMark }: {
                 style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 12 }}
               >
                 <Avatar name={r.name} size={38} tone={m === 'absent' ? 'bad' : m === 'leave' ? 'warn' : 'neutral'} />
-                <Text v="heading" style={{ flex: 1 }} numberOfLines={1}>{r.name}</Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text v="heading" numberOfLines={1}>{r.name}</Text>
+                  {r.status === 'leave' && r.note
+                    ? <Text v="caption" tone="warn" numberOfLines={1}>Leave: {r.note}</Text>
+                    : r.class_name ? <Text v="caption" tone="muted" numberOfLines={1}>{r.class_name}</Text> : null}
+                </View>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   {MARKS.map((opt) => {
                     const on = m === opt.key;
