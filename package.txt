@@ -1,0 +1,10 @@
+    versionCode=2 minSdk=24 targetSdk=36
+    versionName=1.1.0
+    declared permissions:
+    requested permissions:
+      android.permission.INTERNET
+      android.permission.VIBRATE
+    install permissions:
+      android.permission.INTERNET: granted=true
+      android.permission.VIBRATE: granted=true
+      runtime permissions:
