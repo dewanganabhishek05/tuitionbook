@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+/android
+
+# test output
+tests/e2e/out/

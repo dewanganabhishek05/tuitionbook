@@ -1,0 +1,102 @@
+# Builds an unsigned release APK on every push to main (or on demand), runs the data tests first,
+# and publishes the APK to the `apk-builds` branch. Sign it with your own keystore
+# (see README → "Sign the APK"): the signing key is never stored on GitHub.
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck, lint and data tests
+        shell: bash
+        run: |
+          mkdir -p /tmp/logs
+          set -o pipefail
+          { npx tsc --noEmit && npx eslint src && npm test; } 2>&1 | tee /tmp/logs/checks.log
+
+      - name: Generate the Android project
+        env:
+          CI: 1
+        run: npx expo prebuild --platform android --no-install --clean
+
+      - name: Configure release build (unsigned, phone CPUs only)
+        run: |
+          node -e "
+            const fs = require('fs');
+            const f = 'android/app/build.gradle';
+            let s = fs.readFileSync(f, 'utf8');
+            const i = s.indexOf('release {', s.indexOf('buildTypes'));
+            const j = s.indexOf('signingConfig signingConfigs.debug', i);
+            if (i < 0 || j < 0) throw new Error('release signing line not found');
+            s = s.slice(0, j) + '// unsigned: signed later with the owner\'s keystore' + s.slice(j + 'signingConfig signingConfigs.debug'.length);
+            fs.writeFileSync(f, s);
+          "
+          sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=armeabi-v7a,arm64-v8a/' android/gradle.properties
+          grep -n "reactNativeArchitectures" android/gradle.properties
+
+      - name: Build release APK
+        working-directory: android
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee /tmp/logs/gradle.log
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tuitionbook-unsigned-apk
+          path: android/app/build/outputs/apk/release/*.apk
+
+      - name: Publish to apk-builds branch
+        run: |
+          APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
+          mkdir -p /tmp/out && cp "$APK" /tmp/out/tuitionbook-unsigned.apk
+          cd /tmp/out
+          printf "commit=%s\nbuilt=%s\nrun=%s\n" "$GITHUB_SHA" "$(date -u +%FT%TZ)" "$GITHUB_RUN_ID" > BUILD_INFO.txt
+          git init -q -b apk-builds
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add . && git commit -qm "APK for ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" apk-builds
+
+      - name: Report failure details
+        if: failure()
+        run: |
+          mkdir -p /tmp/fail && cd /tmp/fail
+          echo "Build failed in run $GITHUB_RUN_ID at $(date -u +%FT%TZ) for $GITHUB_SHA" > BUILD_FAILED.txt
+          for f in /tmp/logs/*.log; do [ -f "$f" ] && tail -n 400 "$f" > "$(basename "$f")"; done
+          git init -q -b apk-builds
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add . && git commit -qm "Build failed for ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" apk-builds || true

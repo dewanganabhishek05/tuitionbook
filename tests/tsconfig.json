@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "react-native": ["./tests/stubs/react-native.ts"],
+      "expo-sqlite": ["./tests/stubs/expo-sqlite.ts"]
+    },
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}
