@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import type { ComponentProps, ReactNode } from 'react';
 import {
-  ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text as RNText,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text as RNText,
   TextInput, View, useWindowDimensions, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -368,10 +368,13 @@ export function Sheet({ visible, onClose, title, children, footer }: {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      {/* Lifts the sheet above the keyboard. It measures the real overlap, so it also works when
+          the window has already been resized by Android. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       <Pressable style={{ flex: 1, backgroundColor: c.overlay }} onPress={onClose} />
       <View style={{
-        maxHeight: height * 0.85, backgroundColor: c.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        flexShrink: 1, maxHeight: height * 0.85, backgroundColor: c.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
         paddingTop: 20, paddingBottom: Math.max(insets.bottom, 16) + 8,
       }}>
         <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: c.border, marginTop: -8, marginBottom: 14 }} />
@@ -381,6 +384,7 @@ export function Sheet({ visible, onClose, title, children, footer }: {
         </ScrollView>
         {footer ? <View style={{ paddingHorizontal: 20, paddingTop: 14, gap: 10 }}>{footer}</View> : null}
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

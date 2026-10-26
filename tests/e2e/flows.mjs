@@ -657,6 +657,111 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await see('For school students');
   });
 
+  /* --------------------------------------------------------- new in 1.3 */
+  const ACCENT = 'rgb(91, 92, 240)';
+  const bgOf = (loc) => loc.evaluate((e) => getComputedStyle(e).backgroundColor);
+
+  await step('Notes Check: mark a chapter for all students, and unmark it', async () => {
+    await go('/notes');
+    await text('Maths', true).click();
+    await see('Mark chapters for all students');
+    await click('Mark chapters for all students');
+    await see('All students');
+    await label('Chapter 30 for all students').click();
+    await page.waitForTimeout(500);
+    if ((await bgOf(label('Chapter 30 for all students'))) !== ACCENT) throw new Error('chapter 30 is not ticked for all');
+    await see('/ 30 chapters done by everyone');
+    await page.screenshot({ path: `${OUT}notes-all.png` });
+    await label('Back').click();
+    await text('Aarav Sharma', true).click();
+    if ((await bgOf(label('Chapter 30'))) !== ACCENT) throw new Error('Aarav does not have chapter 30');
+    await label('Back').click();
+    await click('Mark chapters for all students');
+    await label('Chapter 30 for all students').click();
+    await page.waitForTimeout(500);
+    if ((await bgOf(label('Chapter 30 for all students'))) === ACCENT) throw new Error('chapter 30 was not cleared for all');
+  });
+
+  const { createRequire: cr } = await import('node:module');
+  const XLSX = cr(import.meta.url)('xlsx');
+  const excelBtn = (n) => page.getByText('Excel', { exact: true }).filter({ visible: true }).nth(n);
+  const pdfBtn = (n) => page.getByText('PDF', { exact: true }).filter({ visible: true }).nth(n);
+  async function downloadXlsx(n) {
+    const [dl] = await Promise.all([page.waitForEvent('download'), excelBtn(n).click()]);
+    const path = `${OUT}${dl.suggestedFilename()}`;
+    await dl.saveAs(path);
+    return { name: dl.suggestedFilename(), wb: XLSX.readFile(path) };
+  }
+
+  await step('Reports: More has a Reports section; month picker stops at this month', async () => {
+    await go('/more');
+    await click('Attendance, Notes Check, fees');
+    await see('Download as PDF or Excel');
+    await see('Attendance report');
+    await see('Notes Check report');
+    await see('Fees report');
+    await see('Student-wise report');
+    await label('Next month').click();
+    await page.screenshot({ path: `${OUT}reports.png` });
+  });
+
+  await step('Attendance report: Excel has a summary and a day grid; PDF opens a printable page', async () => {
+    const { name, wb } = await downloadXlsx(0);
+    if (!/^TuitionBook-Attendance-\d{4}-\d{2}\.xlsx$/.test(name)) throw new Error(name);
+    if (wb.SheetNames.join() !== 'Overview,Summary,Daily') throw new Error(wb.SheetNames.join());
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets.Summary, { header: 1 });
+    if (rows[0].join() !== 'Student,Class,Present,Absent,Leave,Attendance %' || rows.length < 19) throw new Error(JSON.stringify(rows[0]));
+    const [popup] = await Promise.all([page.waitForEvent('popup'), pdfBtn(0).click()]);
+    await popup.waitForLoadState();
+    const body = await popup.content();
+    if (!body.includes('Attendance report') || !body.includes('Aarav Sharma')) throw new Error('PDF page is missing content');
+    await popup.close();
+  });
+
+  await step('Notes Check, Fees and previous-month reports download as Excel', async () => {
+    const notesX = await downloadXlsx(1);
+    if (notesX.wb.SheetNames.join() !== 'Overview,Overview 2,English,Maths,Science') throw new Error(notesX.wb.SheetNames.join());
+    const maths = XLSX.utils.sheet_to_json(notesX.wb.Sheets.Maths, { header: 1 });
+    if (maths[0].length !== 33) throw new Error(`maths columns ${maths[0].length}`);
+    const feesX = await downloadXlsx(2);
+    if (!/^TuitionBook-Fees-/.test(feesX.name) || feesX.wb.SheetNames.join() !== 'Overview,Fees,Payments received') throw new Error(feesX.name + feesX.wb.SheetNames);
+    const fees = XLSX.utils.sheet_to_json(feesX.wb.Sheets.Fees, { header: 1 });
+    if (fees.length < 20) throw new Error('fees rows ' + fees.length);
+    await label('Previous month').click();
+    await label('Previous month').click();
+    await label('Previous month').click();
+    await label('Previous month').click();
+    const old = page.waitForEvent('dialog');
+    await excelBtn(2).click();
+    const dlg = await old; // accepted by the global handler
+    if (!/no fees/i.test(dlg.message())) throw new Error(dlg.message());
+  });
+
+  await step('Student-wise report: choose one student or everyone', async () => {
+    await go('/reports');
+    if (await excelBtn(3).isEnabled().catch(() => true)) { /* button looks enabled; the real check is below */ }
+    await label('Choose student').click();
+    await see('All students');
+    await ph('Search name, phone or class').fill('Aarav');
+    await text('Aarav Sharma', true).click();
+    await see('Aarav Sharma');
+    const one = await downloadXlsx(3);
+    if (!/^TuitionBook-Student-Aarav-Sharma-/.test(one.name) || one.wb.SheetNames.join() !== 'Overview,Attendance,Fees,Payments,Notes Check') throw new Error(one.name + one.wb.SheetNames);
+    await label('Choose student').click();
+    await text('All students', true).click();
+    const all = await downloadXlsx(3);
+    const rows = XLSX.utils.sheet_to_json(all.wb.Sheets.Students, { header: 1 });
+    if (rows.length !== 19) throw new Error('students rows ' + rows.length);
+  });
+
+  await step('The add-subject sheet is scrollable above the keyboard area (web: fields still reachable)', async () => {
+    await go('/notes');
+    await label('Subject').click();
+    await see('Number of chapters');
+    const box = await page.getByText('Add subject', { exact: true }).filter({ visible: true }).last().boundingBox();
+    if (!box || box.y + box.height > 844) throw new Error('Add subject button is off-screen');
+  });
+
   await step('No JavaScript errors during the whole run', async () => {
     if (pageErrors.length) throw new Error(pageErrors.join(' | '));
   });

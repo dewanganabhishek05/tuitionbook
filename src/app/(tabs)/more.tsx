@@ -30,6 +30,12 @@ export default function MoreScreen() {
         </Card>
       </Section>
 
+      <Section title="Reports">
+        <Card padded={false}>
+          <Row left={<Icon name="document-text-outline" />} title="Reports" subtitle="Attendance, Notes Check, fees and student-wise, as PDF or Excel" onPress={() => router.push('/reports')} />
+        </Card>
+      </Section>
+
       <Section title="Data">
         <Card padded={false}>
           <Row

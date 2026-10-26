@@ -114,3 +114,56 @@ export async function setAllChecks(db: SQLiteDatabase, subjectId: number, studen
   });
   notifyChange();
 }
+
+/** For each chapter (index 0 = chapter 1): how many active students have it ticked. */
+export async function chapterCoverage(db: SQLiteDatabase, subjectId: number) {
+  const subject = await getSubject(db, subjectId);
+  const total = await db.getFirstAsync<{ n: number }>("SELECT COUNT(*) AS n FROM students WHERE status = 'active'");
+  const rows = await db.getAllAsync<{ chapter: number; n: number }>(
+    `SELECT nc.chapter, COUNT(*) AS n FROM note_checks nc JOIN students s ON s.id = nc.student_id
+     WHERE nc.subject_id = ? AND s.status = 'active' GROUP BY nc.chapter`, subjectId,
+  );
+  const counts = Array.from({ length: subject?.chapters ?? 0 }, () => 0);
+  for (const r of rows) if (r.chapter >= 1 && r.chapter <= counts.length) counts[r.chapter - 1] = r.n;
+  return { students: total?.n ?? 0, counts };
+}
+
+/** Ticks (or clears) one chapter for every active student at once. */
+export async function setChapterForAll(db: SQLiteDatabase, subjectId: number, chapter: number, on: boolean) {
+  const subject = await getSubject(db, subjectId);
+  if (!subject) throw new Error('This subject no longer exists');
+  if (!Number.isInteger(chapter) || chapter < 1 || chapter > subject.chapters) throw new Error('No such chapter');
+  if (on) {
+    await db.runAsync(
+      `INSERT OR IGNORE INTO note_checks (subject_id, student_id, chapter, checked_at)
+       SELECT ?, id, ?, ? FROM students WHERE status = 'active'`, subjectId, chapter, now(),
+    );
+  } else {
+    await db.runAsync(
+      `DELETE FROM note_checks WHERE subject_id = ? AND chapter = ?
+       AND student_id IN (SELECT id FROM students WHERE status = 'active')`, subjectId, chapter,
+    );
+  }
+  notifyChange();
+}
+
+/** Ticks every chapter for every active student, or clears them all. */
+export async function setAllChaptersForAll(db: SQLiteDatabase, subjectId: number, on: boolean) {
+  const subject = await getSubject(db, subjectId);
+  if (!subject) throw new Error('This subject no longer exists');
+  await transaction(db, async (tx) => {
+    await tx.runAsync(
+      `DELETE FROM note_checks WHERE subject_id = ? AND student_id IN (SELECT id FROM students WHERE status = 'active')`, subjectId,
+    );
+    if (on) {
+      const stamp = now();
+      for (let ch = 1; ch <= subject.chapters; ch++) {
+        await tx.runAsync(
+          `INSERT OR IGNORE INTO note_checks (subject_id, student_id, chapter, checked_at)
+           SELECT ?, id, ?, ? FROM students WHERE status = 'active'`, subjectId, ch, stamp,
+        );
+      }
+    }
+  });
+  notifyChange();
+}

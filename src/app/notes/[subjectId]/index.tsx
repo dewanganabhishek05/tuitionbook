@@ -45,6 +45,11 @@ export default function SubjectStudents() {
           </Card>
         ) : (
           <View style={{ gap: 10 }}>
+            <Button
+              label="Mark chapters for all students"
+              icon="checkmark-done"
+              onPress={() => router.push({ pathname: '/notes/[subjectId]/all', params: { subjectId: String(subjectId) } })}
+            />
             {students.data.map((s) => (
               <Card key={s.student_id} padded={false}>
                 <Row

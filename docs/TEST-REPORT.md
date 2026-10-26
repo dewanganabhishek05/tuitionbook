@@ -2,6 +2,17 @@
 
 **Date:** 29 Sep 2026 · **Build:** Expo SDK 57 / React Native 0.86 · **Result:** 57/57 data tests, 45/45 UI flows, and the Android emulator run all passing
 
+## v1.3.0: reports, mark for all students, keyboard-aware sheet
+
+| Check | Result |
+|---|---|
+| Data tests (`npm test`) | 68/68 pass. New: every report's numbers (attendance grid with holidays and late joiners, notes sheets with odd subject names, fees totals and payments, student reports), Excel files read back, HTML escaping, chapter-for-all-students |
+| UI flows (`tests/e2e/flows.mjs`) | 51/51 pass. New: mark a chapter for all students and unmark it, the Reports screen, downloaded Excel files for each report, the PDF page, student picker |
+| PDF layout | Every report rendered to PDF here and checked by eye |
+| Typecheck and lint | Clean |
+
+**Found while testing v1.3.0:** the student picker kept its search text, so "All students" vanished the second time it was opened.
+
 ## v1.2.0: themes, Sunday-aware calendar, Notes Check
 
 | Check | Result |

@@ -104,7 +104,52 @@ appId: com.tuitionbook.app
 - assertVisible: "Chapter 30"
 - takeScreenshot: 14-notes-grid
 - back
+# Mark a chapter for all students
+- tapOn: "Mark chapters for all students"
+- extendedWaitUntil:
+    visible: "All students"
+    timeout: 20000
+- tapOn: "Chapter 12 for all students"
+- takeScreenshot: 15-notes-all
 - back
+- back
+
+# Add a subject: the sheet must sit above the keyboard
+- tapOn: "Subject"
+- extendedWaitUntil:
+    visible: "Number of chapters"
+    timeout: 20000
+- tapOn: "e.g. Maths"
+- inputText: "Hindi"
+- takeScreenshot: 16-subject-sheet-keyboard
+- hideKeyboard
+- tapOn:
+    text: "Add subject"
+    index: 1
+- extendedWaitUntil:
+    visible: "Hindi"
+    timeout: 20000
+- back
+
+# Reports: PDF and Excel each open the share sheet
+- tapOn: "More"
+- tapOn: "Attendance, Notes Check.*"
+- extendedWaitUntil:
+    visible: "Download as PDF or Excel"
+    timeout: 20000
+- takeScreenshot: 17-reports
+- tapOn: "Excel"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: 18-share-excel
+- back
+- assertVisible: "Attendance report"
+- tapOn: "PDF"
+- waitForAnimationToEnd:
+    timeout: 8000
+- takeScreenshot: 19-share-pdf
+- back
+- assertVisible: "Attendance report"
 - back
 
 # Backup screen shows the Google connect button on a real device
