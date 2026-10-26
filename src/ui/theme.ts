@@ -1,43 +1,47 @@
-import { useColorScheme } from 'react-native';
+import 'expo-sqlite/localStorage/install'; // synchronous localStorage on phones (the browser has its own)
+import { useSyncExternalStore } from 'react';
+import { Appearance } from 'react-native';
 
 const light = {
-  bg: '#F6F6F3',
+  bg: '#F4F5FC',
   surface: '#FFFFFF',
-  surface2: '#EFEFEA',
-  text: '#15151A',
-  muted: '#6E6E73',
-  faint: '#A1A1A6',
-  border: '#E7E7E1',
-  accent: '#4338CA',
+  surface2: '#EDEFFB',
+  text: '#14142B',
+  muted: '#62667E',
+  faint: '#A3A7BD',
+  border: '#E4E6F4',
+  accent: '#5B5CF0',
   accentText: '#FFFFFF',
-  accentSoft: '#ECEBFF',
+  accentSoft: '#E8E9FE',
   good: '#15803D',
-  goodSoft: '#E3F5E8',
-  warn: '#B45309',
-  warnSoft: '#FDF0DC',
-  bad: '#D92D20',
-  badSoft: '#FDE9E7',
-  overlay: 'rgba(15,15,20,0.35)',
+  goodSoft: '#E2F6E9',
+  warn: '#B45F06',
+  warnSoft: '#FEF1D6',
+  bad: '#D92D3A',
+  badSoft: '#FDE8EA',
+  overlay: 'rgba(20,20,43,0.38)',
+  shadow: '#3B3F9A',
 };
 
 const dark: typeof light = {
-  bg: '#0D0D10',
-  surface: '#17171B',
-  surface2: '#212127',
-  text: '#F3F3F5',
-  muted: '#9C9CA3',
-  faint: '#65656C',
-  border: '#27272E',
-  accent: '#A5A1FF',
-  accentText: '#131230',
-  accentSoft: '#23224A',
+  bg: '#0E0F1F',
+  surface: '#181A33',
+  surface2: '#23254A',
+  text: '#F2F3FF',
+  muted: '#A0A4C2',
+  faint: '#6A6E92',
+  border: '#2A2D54',
+  accent: '#7B7EFF',
+  accentText: '#0B0B22',
+  accentSoft: '#26285A',
   good: '#6BD48F',
-  goodSoft: '#16301F',
+  goodSoft: '#173222',
   warn: '#F2B35E',
-  warnSoft: '#35270F',
-  bad: '#FF7B72',
-  badSoft: '#3A1716',
-  overlay: 'rgba(0,0,0,0.55)',
+  warnSoft: '#372A12',
+  bad: '#FF7B82',
+  badSoft: '#3B1A1F',
+  overlay: 'rgba(0,0,0,0.6)',
+  shadow: '#000000',
 };
 
 export type Colors = typeof light;
@@ -49,13 +53,53 @@ export const font = {
   bold: 'Inter_700Bold',
 };
 
-export const radius = { sm: 10, md: 14, lg: 20, pill: 999 };
+export const radius = { sm: 12, md: 16, lg: 24, pill: 999 };
 export const space = (n: number) => n * 4;
 
+/* ---------------------------------------------------------- appearance */
+
+export type ThemeMode = 'light' | 'dark';
+const MODE_KEY = 'appearance';
+
+function readMode(): ThemeMode {
+  try {
+    return globalThis.localStorage.getItem(MODE_KEY) === 'dark' ? 'dark' : 'light'; // Light is the default
+  } catch {
+    return 'light';
+  }
+}
+
+let mode: ThemeMode = readMode();
+const listeners = new Set<() => void>();
+try { Appearance.setColorScheme(mode); } catch { /* not supported everywhere */ }
+
+export function getThemeMode(): ThemeMode {
+  return mode;
+}
+
+export function setThemeMode(next: ThemeMode) {
+  if (next === mode) return;
+  mode = next;
+  try { globalThis.localStorage.setItem(MODE_KEY, next); } catch { /* keep the in-memory choice */ }
+  try { Appearance.setColorScheme(next); } catch { /* not supported everywhere */ }
+  listeners.forEach((l) => l());
+}
+
+function subscribe(cb: () => void) {
+  listeners.add(cb);
+  return () => { listeners.delete(cb); };
+}
+
 export function useTheme() {
-  const scheme = useColorScheme();
-  const c = scheme === 'dark' ? dark : light;
-  return { c, dark: scheme === 'dark' };
+  const m = useSyncExternalStore(subscribe, getThemeMode, getThemeMode);
+  return { c: m === 'dark' ? dark : light, dark: m === 'dark', mode: m };
+}
+
+/** Soft card shadow used across the app (light mode only; dark mode relies on surface contrast). */
+export function cardShadow(c: Colors, dark: boolean) {
+  return dark
+    ? {}
+    : { shadowColor: c.shadow, shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 2 };
 }
 
 export type Tone = 'neutral' | 'accent' | 'good' | 'warn' | 'bad';

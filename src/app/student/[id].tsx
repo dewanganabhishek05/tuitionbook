@@ -31,6 +31,8 @@ export default function StudentDetail() {
   const dueDay = settings.data.fee_due_day;
   const outstanding = fees.data.reduce((a, f) => a + Math.max(0, f.amount_due - f.paid), 0);
   const archived = s.status === 'archived';
+  // The oldest month that still has a balance is the one a payment goes against first.
+  const oldestUnpaid = [...fees.data].filter((f) => f.paid < f.amount_due).sort((a, b) => a.month.localeCompare(b.month))[0];
 
   const remind = () => {
     const unpaid = fees.data!.filter((f) => f.paid < f.amount_due);
@@ -69,9 +71,16 @@ export default function StudentDetail() {
           />
           <Stat label="Fee outstanding" value={rupees(outstanding)} tone={outstanding > 0 ? 'bad' : 'good'} sub={`${rupees(s.monthly_fee)} / month`} />
         </View>
-        {outstanding > 0 && (
-          <Button label="Send fee reminder" icon="logo-whatsapp" variant="secondary" size="sm" onPress={remind} style={{ marginTop: 14 }} />
-        )}
+        {oldestUnpaid ? (
+          <View style={{ gap: 10, marginTop: 16 }}>
+            <Button
+              label={`Record payment · ${formatMonth(oldestUnpaid.month, false)}`}
+              icon="cash-outline"
+              onPress={() => router.push({ pathname: '/payment/[dueId]', params: { dueId: String(oldestUnpaid.id) } })}
+            />
+            <Button label="Send fee reminder" icon="logo-whatsapp" variant="secondary" size="sm" onPress={remind} />
+          </View>
+        ) : null}
       </Card>
 
       <Section

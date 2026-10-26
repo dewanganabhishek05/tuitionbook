@@ -51,6 +51,8 @@ export default function TodayScreen() {
         </Card>
       ) : (
         <>
+          <QuickActions />
+
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 }}>
             <Text v="title">Attendance</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 999, borderWidth: 1, borderColor: c.border }}>
@@ -87,6 +89,33 @@ export default function TodayScreen() {
         </>
       )}
     </Screen>
+  );
+}
+
+function QuickActions() {
+  const { c } = useTheme();
+  const items: { label: string; icon: React.ComponentProps<typeof Ionicons>['name']; fg: string; bg: string; go: () => void }[] = [
+    { label: 'Attendance', icon: 'checkmark-done', fg: c.accent, bg: c.accentSoft, go: () => router.push('/attendance') },
+    { label: 'Calendar', icon: 'calendar', fg: c.warn, bg: c.warnSoft, go: () => router.navigate('/calendar') },
+    { label: 'Notes', icon: 'book', fg: c.good, bg: c.goodSoft, go: () => router.push('/notes') },
+    { label: 'Fees', icon: 'wallet', fg: c.bad, bg: c.badSoft, go: () => router.navigate('/fees') },
+  ];
+  return (
+    <View style={{ flexDirection: 'row', gap: 10 }}>
+      {items.map((it) => (
+        <Pressable
+          key={it.label}
+          accessibilityLabel={`Quick action ${it.label === 'Notes' ? 'Notes Check' : it.label}`}
+          onPress={() => { tap(); it.go(); }}
+          style={({ pressed }) => ({ flex: 1, alignItems: 'center', gap: 8, opacity: pressed ? 0.7 : 1 })}
+        >
+          <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: it.bg, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name={it.icon} size={24} color={it.fg} />
+          </View>
+          <Text v="caption" tone="muted" numberOfLines={1}>{it.label}</Text>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { listStudents } from '../../db/repo';
 import { useLive } from '../../db/live';
 import { rupees } from '../../lib/format';
-import { Avatar, Badge, Button, Card, Chip, ChipRow, Divider, Empty, Fab, Loading, Row, Text } from '../../ui/kit';
+import { Avatar, Badge, Button, Card, Chip, ChipRow, Empty, Fab, Loading, Row, Text } from '../../ui/kit';
 import { font, radius, useTheme } from '../../ui/theme';
 
 type Filter = { kind: 'all' } | { kind: 'pending' } | { kind: 'archived' };
@@ -73,30 +73,21 @@ export default function StudentsScreen() {
               />
             </Card>
           }
-          renderItem={({ item: s, index }) => {
-            const first = index === 0;
-            const last = index === rows.length - 1;
-            return (
-              <View style={{
-                backgroundColor: c.surface, borderColor: c.border, borderLeftWidth: 1, borderRightWidth: 1,
-                borderTopWidth: first ? 1 : 0, borderBottomWidth: last ? 1 : 0,
-                borderTopLeftRadius: first ? 20 : 0, borderTopRightRadius: first ? 20 : 0,
-                borderBottomLeftRadius: last ? 20 : 0, borderBottomRightRadius: last ? 20 : 0, overflow: 'hidden',
-              }}>
-                {!first && <Divider inset={68} />}
-                <Row
-                  left={<Avatar name={s.name} />}
-                  title={s.name}
-                  subtitle={s.class_name || s.parent_phone}
-                  right={s.outstanding > 0
-                    ? <Badge label={`${rupees(s.outstanding)} due`} tone="bad" />
-                    : s.monthly_fee > 0 ? <Badge label="Paid" tone="good" icon="checkmark" /> : null}
-                  chevron={false}
-                  onPress={() => router.push({ pathname: '/student/[id]', params: { id: String(s.id) } })}
-                />
-              </View>
-            );
-          }}
+          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+          renderItem={({ item: s }) => (
+            <Card padded={false}>
+              <Row
+                left={<Avatar name={s.name} />}
+                title={s.name}
+                subtitle={s.class_name || s.parent_phone}
+                right={s.outstanding > 0
+                  ? <Badge label={`${rupees(s.outstanding)} due`} tone="bad" />
+                  : s.monthly_fee > 0 ? <Badge label="Paid" tone="good" icon="checkmark" /> : null}
+                chevron={false}
+                onPress={() => router.push({ pathname: '/student/[id]', params: { id: String(s.id) } })}
+              />
+            </Card>
+          )}
         />
       )}
       <Fab label="Student" onPress={() => router.push('/student/form')} />

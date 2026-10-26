@@ -11,8 +11,8 @@ import { useTheme } from '../../ui/theme';
 function Icon({ name, tone }: { name: React.ComponentProps<typeof Ionicons>['name']; tone?: 'warn' }) {
   const { c } = useTheme();
   return (
-    <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: tone === 'warn' ? c.warnSoft : c.surface2, alignItems: 'center', justifyContent: 'center' }}>
-      <Ionicons name={name} size={19} color={tone === 'warn' ? c.warn : c.text} />
+    <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: tone === 'warn' ? c.warnSoft : c.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+      <Ionicons name={name} size={19} color={tone === 'warn' ? c.warn : c.accent} />
     </View>
   );
 }
@@ -24,6 +24,12 @@ export default function MoreScreen() {
 
   return (
     <Screen title="More">
+      <Section title="School">
+        <Card padded={false}>
+          <Row left={<Icon name="book-outline" />} title="Notes Check" subtitle="Tick off each chapter's notes, subject by subject" onPress={() => router.push('/notes')} />
+        </Card>
+      </Section>
+
       <Section title="Data">
         <Card padded={false}>
           <Row

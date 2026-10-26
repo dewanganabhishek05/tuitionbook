@@ -25,18 +25,26 @@ No setup: open the app, add your students, and start.
 - After saving, the app offers to **WhatsApp the parents of absent students**.
 
 **Calendar**
-- A month grid: each day shows present/total once attendance is taken, holidays with a ☀, and planned leave with a dot. You can go into future months to plan.
+- A normal Sunday-first month grid with whole weeks. Sundays (and dates from neighbouring months) are shown but disabled. Each day shows present/total once attendance is taken, holidays with a ☀, and planned leave with a dot. You can go into future months to plan.
 - **Tap any date** to see every student's status that day. From there you can:
   - **mark a holiday**, with an optional name like "Diwali", on any date, including future ones
   - **add leave with a reason** (e.g. "Sick", "Family function") for any student, including leave planned ahead
   - change a single mark, or open the full roll.
 - The month summary shows days taken, holidays and average attendance, plus each student's % for the month.
 
+**Notes Check** (for school students)
+- **More → Notes Check**, or the Notes shortcut on Today. Add subjects with the **Subject** button (30 chapters by default; change it per subject).
+- Open a subject to see every active student with their progress. Tap a student for a grid of chapter numbers; tap a number to tick it (tap again to untick). **Check all** / **Clear all** are there too.
+- Ticks are saved on the phone and included in backups.
+
+**Appearance**
+- Settings → Appearance: **Light** (default) or **Dark**. Your choice is remembered.
+
 **Students**
 - Search by name, phone or class; filter by **Fee pending**; see archived students.
 - **Save & add another** keeps the class, fee and joining date, so entering a whole class is quick.
 - A default monthly fee (Settings) pre-fills for new students.
-- Student page: Call and WhatsApp buttons, attendance calendar and %, outstanding fees, fee history, notes.
+- Student page: Call and WhatsApp buttons, **Record payment** (for the oldest unpaid month), attendance calendar and %, outstanding fees, fee history, notes.
 - Archiving a student keeps their history and stops new monthly fees.
 
 **Fees**
@@ -159,12 +167,12 @@ src/
 ```bash
 npm run typecheck
 npm run lint
-npm test          # 50 data-layer tests on real SQLite with a fake clock
+npm test          # 57 data-layer tests on real SQLite with a fake clock
 ```
 
 `npm test` covers month and year boundaries, leap years, archive and restore, joining-date and fee edits, partial payments, overpayments, overdue rules, attendance rules, search, cascade deletes, and backup/restore including failure rollback.
 
-End-to-end UI flows (40 of them) run against the web preview:
+End-to-end UI flows (45 of them) run against the web preview:
 
 ```bash
 npx expo start --web --port 8081

@@ -273,7 +273,8 @@ const lastAlert = () => alerts.at(-1) ?? '';
   });
 
   await step('Tap today: day screen shows the holiday; rename it, then remove it', async () => {
-    await label(`Day ${TODAY}`).click();
+    if (new Date().getDay() === 0) await go(`/day/${TODAY}`); // Sundays are disabled in the calendar
+    else await label(`Day ${TODAY}`).click();
     await see('Holiday', true);
     await see('No class this day');
     await label('Rename holiday').click();
@@ -537,6 +538,123 @@ const lastAlert = () => alerts.at(-1) ?? '';
     if (!box || box.y + box.height > 844) throw new Error(`Done is off-screen (y=${box && Math.round(box.y)})`);
     await done.click({ trial: false });
     await see('0/18 present');
+  });
+
+
+  /* --------------------------------------------------------- new in 1.2 */
+  const lumaAt = () => page.evaluate(() => {
+    let el = document.elementFromPoint(6, 420);
+    while (el) {
+      const m = getComputedStyle(el).backgroundColor.match(/[\d.]+/g);
+      if (m && (m[3] === undefined || Number(m[3]) > 0.5)) return (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) / 255;
+      el = el.parentElement;
+    }
+    return 1;
+  });
+
+  await step('Appearance: Light by default; Dark can be chosen, persists after reload, and can be undone', async () => {
+    await go('/settings');
+    await see('Appearance');
+    if ((await lumaAt()) < 0.7) throw new Error('default theme is not light');
+    await click('Dark', true);
+    await page.waitForTimeout(300);
+    if ((await lumaAt()) > 0.3) throw new Error('dark did not apply');
+    await page.screenshot({ path: `${OUT}settings-dark.png` });
+    await go('/');
+    if ((await lumaAt()) > 0.3) throw new Error('dark did not persist after reload');
+    await page.screenshot({ path: `${OUT}today-dark.png` });
+    await go('/settings');
+    await click('Light', true);
+    await page.waitForTimeout(300);
+    if ((await lumaAt()) < 0.7) throw new Error('light did not come back');
+  });
+
+  await step('Calendar is Sunday-first with whole weeks; Sundays are shown but disabled', async () => {
+    await go('/calendar');
+    await see('Sun', true);
+    const firstOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+    let sunday = null; let monday = null;
+    for (let i = 0; i < 7; i++) {
+      const x = new Date(firstOfMonth); x.setDate(1 + i);
+      const iso = `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
+      if (x.getDay() === 0 && !sunday) sunday = iso;
+      if (x.getDay() === 1 && !monday) monday = iso;
+    }
+    const sun = label(`Day ${sunday}`);
+    await sun.waitFor({ state: 'visible' });
+    if ((await sun.getAttribute('aria-disabled')) !== 'true') throw new Error('Sunday is not disabled');
+    const before = page.url();
+    await sun.click({ force: true });
+    await page.waitForTimeout(300);
+    if (page.url() !== before) throw new Error('tapping a Sunday navigated');
+    if ((await label(`Day ${monday}`).getAttribute('aria-disabled')) === 'true') throw new Error('Monday is disabled');
+    await page.screenshot({ path: `${OUT}calendar-sunday.png` });
+  });
+
+  await step('Student details: Record payment button opens the oldest unpaid month', async () => {
+    await go('/students');
+    await text('Diya Patel', true).click();
+    await see('Fee outstanding');
+    await click('Record payment');
+    await see('Balance due');
+    await see('Amount received');
+    await label('Back').click();
+    await see('Fee outstanding');
+    await page.screenshot({ path: `${OUT}student-record-payment.png` });
+  });
+
+  await step('Notes Check: subjects, students, and a 30-chapter tick grid', async () => {
+    await go('/notes');
+    await see('Notes Check');
+    for (const s of ['Maths', 'Science', 'English']) await see(s, true);
+    // add a subject: 30 chapters by default
+    await label('Subject').click();
+    await see('Number of chapters');
+    const vals = await page.locator('input').filter({ visible: true }).evaluateAll((els) => els.map((e) => e.value));
+    if (!vals.includes('30')) throw new Error(`chapters default is not 30: ${vals}`);
+    await fill('e.g. Maths', 'Hindi');
+    await page.getByText('Add subject', { exact: true }).filter({ visible: true }).last().click();
+    await see('Hindi', true);
+    // open it: every student is listed
+    await text('Hindi', true).click();
+    await see('30 chapters');
+    await see('Aarav Sharma', true);
+    await text('Aarav Sharma', true).click();
+    await label('Chapter 30').waitFor({ state: 'visible' });
+    if (await page.getByLabel('Chapter 31', { exact: true }).count()) throw new Error('more than 30 chapters');
+    await see('30 left');
+    await label('Chapter 5').click();
+    await see('29 left');
+    const bg = await label('Chapter 5').evaluate((e) => getComputedStyle(e).backgroundColor);
+    if (bg !== 'rgb(91, 92, 240)') throw new Error(`chapter 5 not ticked (bg ${bg})`);
+    await label('Chapter 5').click();
+    await see('30 left');
+    await click('Check all');
+    await see('All chapters checked');
+    await page.screenshot({ path: `${OUT}notes-grid.png` });
+    await click('Clear all');
+    await see('30 left');
+    // progress shows on the list, then edit chapters to 12 and delete the subject
+    await label('Chapter 3').click();
+    await label('Back').click();
+    await see('1/30');
+    await label('Edit subject').click();
+    const num = page.locator('input').filter({ visible: true }).nth(1);
+    await num.fill('12');
+    await page.getByText('Save', { exact: true }).filter({ visible: true }).last().click();
+    await see('12 chapters');
+    await label('Delete subject').click();
+    await see('Notes Check');
+    await notSee('Hindi', true);
+  });
+
+  await step('Notes Check entry points: Today quick action and More', async () => {
+    await go('/');
+    await label('Quick action Notes Check').click();
+    await see('For school students');
+    await go('/more');
+    await click('Notes Check', true);
+    await see('For school students');
   });
 
   await step('No JavaScript errors during the whole run', async () => {

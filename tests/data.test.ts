@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 import { createSnapshot, describeSnapshot, parseSnapshot, restoreSnapshot } from '../src/backup/snapshot';
+import * as notes from '../src/db/notes';
 import * as repo from '../src/db/repo';
 import { MIGRATIONS, SCHEMA_VERSION, migrate } from '../src/db/schema';
 import { seedDemo, wipeAll } from '../src/db/seed';
@@ -609,5 +610,99 @@ describe('sample data', () => {
     await wipeAll(db);
     assert.equal((await repo.listStudents(db, {})).length, 0);
     assert.equal((await repo.getSettings(db)).tutor_name, 'Priya');
+  });
+});
+
+describe('notes check', () => {
+  it('creates subjects with 30 chapters by default and rejects bad input', async () => {
+    const db = await freshDb();
+    const id = await notes.saveSubject(db, { name: '  Maths ' });
+    const sub = await notes.getSubject(db, id);
+    assert.equal(sub?.name, 'Maths');
+    assert.equal(sub?.chapters, 30);
+    await assert.rejects(() => notes.saveSubject(db, { name: '   ' }), /subject name/);
+    await assert.rejects(() => notes.saveSubject(db, { name: 'x', chapters: 0 }), /Chapters/);
+    await assert.rejects(() => notes.saveSubject(db, { name: 'x', chapters: 101 }), /Chapters/);
+    await assert.rejects(() => notes.saveSubject(db, { name: 'x', chapters: 2.5 }), /Chapters/);
+    await assert.rejects(() => notes.saveSubject(db, { name: 'MATHS' }), /already have/);
+  });
+  it('ticks and unticks chapters per student and subject independently', async () => {
+    const db = await freshDb();
+    const a = await student(db, { name: 'Asha' });
+    const b = await student(db, { name: 'Bala' });
+    const maths = await notes.saveSubject(db, { name: 'Maths' });
+    const sci = await notes.saveSubject(db, { name: 'Science' });
+    assert.equal(await notes.toggleCheck(db, maths, a, 3), true);
+    assert.equal(await notes.toggleCheck(db, maths, a, 1), true);
+    assert.deepEqual(await notes.getChecks(db, maths, a), [1, 3]);
+    assert.deepEqual(await notes.getChecks(db, maths, b), []);
+    assert.deepEqual(await notes.getChecks(db, sci, a), []);
+    assert.equal(await notes.toggleCheck(db, maths, a, 3), false);
+    assert.deepEqual(await notes.getChecks(db, maths, a), [1]);
+    await assert.rejects(() => notes.toggleCheck(db, maths, a, 31), /No such chapter/);
+    await assert.rejects(() => notes.toggleCheck(db, maths, a, 0), /No such chapter/);
+    const list = await notes.listSubjectStudents(db, maths);
+    assert.deepEqual(list.map((r) => [r.name, r.checked]), [['Asha', 1], ['Bala', 0]]);
+  });
+  it('check all / clear all, and a custom chapter count', async () => {
+    const db = await freshDb();
+    const a = await student(db);
+    const sub = await notes.saveSubject(db, { name: 'GK', chapters: 12 });
+    await notes.setAllChecks(db, sub, a, true);
+    assert.equal((await notes.getChecks(db, sub, a)).length, 12);
+    await notes.setAllChecks(db, sub, a, false);
+    assert.equal((await notes.getChecks(db, sub, a)).length, 0);
+  });
+  it('lowering the chapter count drops ticks beyond it; deleting removes everything', async () => {
+    const db = await freshDb();
+    const a = await student(db);
+    const sub = await notes.saveSubject(db, { name: 'Maths' });
+    await notes.setAllChecks(db, sub, a, true);
+    await notes.saveSubject(db, { id: sub, name: 'Maths', chapters: 10 });
+    assert.equal((await notes.getChecks(db, sub, a)).length, 10);
+    await notes.deleteSubject(db, sub);
+    assert.equal((await notes.listSubjects(db)).length, 0);
+    assert.equal((await db.getFirstAsync('SELECT COUNT(*) AS n FROM note_checks')).n, 0);
+  });
+  it('only active students count; deleting a student removes their ticks', async () => {
+    const db = await freshDb();
+    const a = await student(db, { name: 'Asha' });
+    const b = await student(db, { name: 'Bala' });
+    const sub = await notes.saveSubject(db, { name: 'Maths' });
+    await notes.toggleCheck(db, sub, a, 1);
+    await notes.toggleCheck(db, sub, b, 1);
+    await repo.setStudentArchived(db, b, true);
+    assert.deepEqual((await notes.listSubjectStudents(db, sub)).map((r) => r.name), ['Asha']);
+    const [row] = await notes.listSubjects(db);
+    assert.deepEqual([row.students, row.checked], [1, 1]);
+    await repo.deleteStudent(db, a);
+    assert.equal((await db.getFirstAsync('SELECT COUNT(*) AS n FROM note_checks WHERE student_id = ?', a)).n, 0);
+  });
+  it('is included in backups and restores, and old backups without it still restore', async () => {
+    const db = await freshDb();
+    const a = await student(db);
+    const sub = await notes.saveSubject(db, { name: 'Maths' });
+    await notes.toggleCheck(db, sub, a, 7);
+    const snap = parseSnapshot(JSON.stringify(await createSnapshot(db)));
+    const other = await freshDb();
+    await restoreSnapshot(other, snap);
+    assert.deepEqual(await notes.getChecks(other, sub, a), [7]);
+    const old = JSON.parse(JSON.stringify(snap));
+    delete old.data.subjects; delete old.data.note_checks; old.schemaVersion = 3;
+    await restoreSnapshot(other, parseSnapshot(JSON.stringify(old)));
+    assert.equal((await notes.listSubjects(other)).length, 0);
+    assert.equal((await repo.listStudents(other, {})).length, 1);
+  });
+  it('upgrades a v3 database without losing data', async () => {
+    const raw = new Database(':memory:');
+    for (const m of MIGRATIONS.slice(0, 3)) raw.exec(m);
+    raw.exec('PRAGMA user_version = 3');
+    raw.exec("INSERT INTO students (name, joining_date, created_at) VALUES ('Old', '2026-01-01', 'x')");
+    const db = adapter(raw);
+    await migrate(db);
+    assert.equal((await db.getFirstAsync('PRAGMA user_version')).user_version, SCHEMA_VERSION);
+    assert.equal((await repo.listStudents(db, {})).length, 1);
+    const sub = await notes.saveSubject(db, { name: 'Maths' });
+    assert.equal(await notes.toggleCheck(db, sub, 1, 1), true);
   });
 });

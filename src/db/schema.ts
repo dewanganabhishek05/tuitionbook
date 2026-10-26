@@ -109,6 +109,24 @@ export const MIGRATIONS: string[] = [
   DROP TABLE IF EXISTS enrollments;
   DROP TABLE IF EXISTS batches;
   `,
+  // v4: Notes Check (for school students). A subject has a number of chapters (30 by default); a row
+  // in note_checks means that student's notes for that chapter are checked.
+  `
+  CREATE TABLE subjects (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL,
+    chapters   INTEGER NOT NULL DEFAULT 30,
+    created_at TEXT    NOT NULL
+  );
+  CREATE TABLE note_checks (
+    subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    chapter    INTEGER NOT NULL,
+    checked_at TEXT    NOT NULL,
+    PRIMARY KEY (subject_id, student_id, chapter)
+  );
+  CREATE INDEX idx_note_checks_student ON note_checks(student_id);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
@@ -119,6 +137,8 @@ export const TABLES = {
   students: ['id', 'name', 'parent_phone', 'class_name', 'joining_date', 'monthly_fee', 'status', 'notes', 'created_at', 'fees_resume'],
   attendance: ['id', 'student_id', 'date', 'status', 'note'],
   holidays: ['date', 'name'],
+  subjects: ['id', 'name', 'chapters', 'created_at'],
+  note_checks: ['subject_id', 'student_id', 'chapter', 'checked_at'],
   fee_dues: ['id', 'student_id', 'month', 'amount_due'],
   payments: ['id', 'fee_due_id', 'amount', 'paid_on', 'mode', 'note', 'created_at'],
 } as const;

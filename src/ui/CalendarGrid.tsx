@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, View } from 'react-native';
-import { daysInMonth, isoWeekday, today } from '../lib/dates';
+import { addDays, daysInMonth, isoWeekday, today } from '../lib/dates';
 import { Text, tap, type IconName } from './kit';
 import { font, useTheme } from './theme';
 
@@ -15,47 +15,53 @@ export interface DayLook {
   dot?: string;
 }
 
-/** Monday-first month grid. `look` styles each day; `onPress` makes days tappable. */
+/**
+ * Normal Sunday-first month grid with whole weeks (neighbouring months' dates shown faded).
+ * Sundays are shown but disabled (no class), as are the neighbouring-month dates.
+ * `look` styles each day; `onPress` makes the other days tappable.
+ */
 export function CalendarGrid({
   month, look, onPress, selected,
 }: { month: string; look: (date: string) => DayLook; onPress?: (date: string) => void; selected?: string }) {
   const { c } = useTheme();
   const n = daysInMonth(month);
-  const lead = isoWeekday(`${month}-01`) - 1;
-  const cells: (string | null)[] = [
-    ...Array(lead).fill(null),
-    ...Array.from({ length: n }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`),
-  ];
+  const first = `${month}-01`;
+  const lead = isoWeekday(first) % 7; // Sunday = 0
+  const total = Math.ceil((lead + n) / 7) * 7;
+  const cells = Array.from({ length: total }, (_, i) => addDays(first, i - lead));
   const t = today();
 
   return (
     <View>
       <View style={{ flexDirection: 'row' }}>
-        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-          <Text key={i} v="caption" tone="faint" style={{ flex: 1, textAlign: 'center', marginBottom: 6 }}>{d}</Text>
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
+          <Text key={d} v="caption" tone="faint" style={{ flex: 1, textAlign: 'center', marginBottom: 8, opacity: i === 0 ? 0.7 : 1 }}>{d}</Text>
         ))}
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {cells.map((date, i) => {
-          if (!date) return <View key={i} style={{ width: `${100 / 7}%`, aspectRatio: 0.9 }} />;
-          const l = look(date);
+        {cells.map((date) => {
+          const inMonth = date.startsWith(month);
+          const sunday = isoWeekday(date) === 7;
+          const off = !inMonth || sunday; // disabled cells
+          const l = inMonth && !sunday ? look(date) : {};
           const isToday = date === t;
           const isSel = date === selected;
           return (
             <View key={date} style={{ width: `${100 / 7}%`, aspectRatio: 0.9, padding: 2.5 }}>
               <Pressable
                 accessibilityLabel={`Day ${date}`}
-                disabled={!onPress}
+                accessibilityState={{ disabled: off || !onPress }}
+                disabled={off || !onPress}
                 onPress={() => { tap(); onPress?.(date); }}
                 style={({ pressed }) => ({
-                  flex: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 1,
-                  backgroundColor: l.bg ?? 'transparent',
-                  borderWidth: isToday || isSel ? 1.5 : 0,
+                  flex: 1, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 1,
+                  backgroundColor: isToday && !off ? c.accentSoft : l.bg ?? 'transparent',
+                  borderWidth: (isToday || isSel) && !off ? 1.5 : 0,
                   borderColor: isSel ? c.text : c.accent,
-                  opacity: pressed ? 0.6 : 1,
+                  opacity: off ? 0.38 : pressed ? 0.6 : 1,
                 })}
               >
-                <Text v="label" style={{ color: l.fg ?? c.text, fontFamily: isToday ? font.bold : font.medium }}>
+                <Text v="label" style={{ color: off ? c.muted : l.fg ?? (isToday ? c.accent : c.text), fontFamily: isToday && !off ? font.bold : font.medium }}>
                   {String(Number(date.slice(8)))}
                 </Text>
                 {l.icon ? <Ionicons name={l.icon} size={11} color={l.iconColor ?? c.muted} /> : null}

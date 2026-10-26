@@ -4,6 +4,19 @@ appId: com.tuitionbook.app
 - extendedWaitUntil:
     visible: ".*/18 paid"
     timeout: 60000
+# Light is the default; switch to Dark in Settings
+- tapOn: "More"
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "Appearance"
+    timeout: 20000
+- tapOn: "Dark"
+- takeScreenshot: 12-dark-settings
+- back
+- tapOn: "Today"
+- extendedWaitUntil:
+    visible: ".*/18 paid"
+    timeout: 20000
 - takeScreenshot: 12-dark-today
 - tapOn: "Calendar"
 - extendedWaitUntil:

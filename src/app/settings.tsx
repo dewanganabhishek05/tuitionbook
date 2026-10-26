@@ -3,10 +3,12 @@ import { KeyboardAvoidingView, View } from 'react-native';
 import { getSettings, setSettings } from '../db/repo';
 import { seedDemo, wipeAll } from '../db/seed';
 import { useDb } from '../db/live';
-import { goBack, Button, Field, Footer, Loading, Screen, Section, Text, confirm, notify } from '../ui/kit';
+import { goBack, Button, Field, Footer, Loading, Screen, Section, Segmented, Text, confirm, notify } from '../ui/kit';
+import { setThemeMode, useTheme, type ThemeMode } from '../ui/theme';
 
 export default function SettingsScreen() {
   const db = useDb();
+  const { mode } = useTheme();
   const [tutor, setTutor] = useState('');
   const [center, setCenter] = useState('');
   const [dueDay, setDueDay] = useState('10');
@@ -42,6 +44,13 @@ export default function SettingsScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       <Screen back title="Settings" footer={<Footer><Button label="Save" icon="checkmark" onPress={save} style={{ flex: 1 }} /></Footer>}>
+        <Section title="Appearance">
+          <Segmented<ThemeMode>
+            value={mode}
+            onChange={setThemeMode}
+            options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]}
+          />
+        </Section>
         <Field label="Your name" value={tutor} onChangeText={setTutor} placeholder="e.g. Priya" autoCapitalize="words" hint="Shown in the greeting" />
         <Field label="Tuition / centre name (optional)" value={center} onChangeText={setCenter} placeholder="e.g. Bright Minds Tuition" hint="Used to sign WhatsApp reminders and receipts" />
         <Field label="Default monthly fee (₹)" value={defFee} onChangeText={setDefFee} keyboardType="number-pad" placeholder="0" error={feeError} hint="Pre-filled when you add a new student" />

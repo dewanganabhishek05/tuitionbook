@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { initials } from '../lib/format';
-import { font, radius, toneColors, useTheme, type Tone } from './theme';
+import { cardShadow, font, radius, toneColors, useTheme, type Tone } from './theme';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -103,8 +103,8 @@ export function Footer({ children }: { children: ReactNode }) {
   return (
     <View style={{
       paddingHorizontal: 20, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 12) + 4,
-      backgroundColor: c.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border,
-      flexDirection: 'row', gap: 10,
+      backgroundColor: c.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border,
+      borderTopLeftRadius: 24, borderTopRightRadius: 24, flexDirection: 'row', gap: 10,
     }}>
       {children}
     </View>
@@ -114,10 +114,10 @@ export function Footer({ children }: { children: ReactNode }) {
 export function Card({ children, style, onPress, padded = true }: {
   children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; padded?: boolean;
 }) {
-  const { c } = useTheme();
+  const { c, dark } = useTheme();
   const base: ViewStyle = {
-    backgroundColor: c.surface, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c.border, padding: padded ? 16 : 0, overflow: 'hidden',
+    backgroundColor: c.surface, borderRadius: radius.lg, borderWidth: dark ? StyleSheet.hairlineWidth : 0,
+    borderColor: c.border, padding: padded ? 18 : 0, overflow: 'hidden', ...cardShadow(c, dark),
   };
   if (!onPress) return <View style={[base, style]}>{children}</View>;
   return (
@@ -174,10 +174,10 @@ export function Row({
 
 export function Avatar({ name, size = 40, tone = 'neutral' }: { name: string; size?: number; tone?: Tone }) {
   const { c } = useTheme();
-  const t = toneColors(c, tone);
+  const t = tone === 'neutral' ? { fg: c.accent, bg: c.accentSoft } : toneColors(c, tone);
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' }}>
-      <RNText style={{ fontFamily: font.semibold, fontSize: size * 0.36, color: tone === 'neutral' ? c.text : t.fg }}>
+      <RNText style={{ fontFamily: font.semibold, fontSize: size * 0.36, color: tone === 'neutral' ? c.accent : t.fg }}>
         {initials(name)}
       </RNText>
     </View>
@@ -204,11 +204,11 @@ export function Button({
   const { c } = useTheme();
   const palette = {
     primary: { bg: c.accent, fg: c.accentText, border: c.accent },
-    secondary: { bg: c.surface, fg: c.text, border: c.border },
+    secondary: { bg: c.accentSoft, fg: c.accent, border: c.accentSoft },
     ghost: { bg: 'transparent', fg: c.accent, border: 'transparent' },
     danger: { bg: c.badSoft, fg: c.bad, border: c.badSoft },
   }[variant];
-  const h = size === 'sm' ? 38 : 50;
+  const h = size === 'sm' ? 38 : 52;
   return (
     <Pressable
       accessibilityRole="button"
@@ -249,10 +249,10 @@ export function Chip({ label, selected, onPress }: { label: string; selected?: b
       onPress={() => { tap(); onPress(); }}
       style={{
         paddingHorizontal: 14, height: 34, borderRadius: radius.pill, justifyContent: 'center',
-        backgroundColor: selected ? c.text : c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: selected ? c.text : c.border,
+        backgroundColor: selected ? c.accent : c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: selected ? c.accent : c.border,
       }}
     >
-      <RNText style={{ fontFamily: font.medium, fontSize: 13, color: selected ? c.bg : c.text }}>{label}</RNText>
+      <RNText style={{ fontFamily: font.medium, fontSize: 13, color: selected ? c.accentText : c.muted }}>{label}</RNText>
     </Pressable>
   );
 }
@@ -270,16 +270,16 @@ export function Segmented<T extends string>({
 }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
   const { c } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', backgroundColor: c.surface2, borderRadius: radius.pill, padding: 3 }}>
+    <View style={{ flexDirection: 'row', backgroundColor: c.surface2, borderRadius: radius.pill, padding: 4 }}>
       {options.map((o) => {
         const on = o.value === value;
         return (
           <Pressable
             key={o.value}
             onPress={() => { tap(); onChange(o.value); }}
-            style={{ flex: 1, height: 36, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? c.surface : 'transparent' }}
+            style={{ flex: 1, height: 36, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? c.accent : 'transparent' }}
           >
-            <RNText style={{ fontFamily: on ? font.semibold : font.medium, fontSize: 13, color: on ? c.text : c.muted }}>{o.label}</RNText>
+            <RNText style={{ fontFamily: on ? font.semibold : font.medium, fontSize: 13, color: on ? c.accentText : c.muted }}>{o.label}</RNText>
           </Pressable>
         );
       })}
@@ -296,7 +296,7 @@ export function Field({ label, hint, error, style, ...props }: TextInputProps & 
         placeholderTextColor={c.faint}
         {...props}
         style={[{
-          minHeight: 50, borderRadius: radius.md, backgroundColor: c.surface, paddingHorizontal: 14,
+          minHeight: 52, borderRadius: radius.md, backgroundColor: c.surface, paddingHorizontal: 14,
           borderWidth: 1, borderColor: error ? c.bad : c.border, color: c.text, fontFamily: font.regular, fontSize: 16,
         }, props.multiline && { minHeight: 90, paddingTop: 14, textAlignVertical: 'top' }, style]}
       />
@@ -348,7 +348,7 @@ export function Fab({ icon = 'add', label, onPress }: { icon?: IconName; label: 
       style={({ pressed }) => ({
         position: 'absolute', right: 20, bottom: 20, height: 54, paddingHorizontal: 20, borderRadius: 27,
         backgroundColor: c.accent, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: pressed ? 0.85 : 1,
-        shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6,
+        shadowColor: c.accent, shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
       })}
     >
       <Ionicons name={icon} size={22} color={c.accentText} />
@@ -371,7 +371,7 @@ export function Sheet({ visible, onClose, title, children, footer }: {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, backgroundColor: c.overlay }} onPress={onClose} />
       <View style={{
-        maxHeight: height * 0.85, backgroundColor: c.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+        maxHeight: height * 0.85, backgroundColor: c.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
         paddingTop: 20, paddingBottom: Math.max(insets.bottom, 16) + 8,
       }}>
         <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: c.border, marginTop: -8, marginBottom: 14 }} />

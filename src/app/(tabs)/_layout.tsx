@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router/js-tabs';
 import { StyleSheet, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { font, useTheme } from '../../ui/theme';
+import { cardShadow, font, useTheme } from '../../ui/theme';
 import type { IconName } from '../../ui/kit';
 
 function TabIcon({ on, off, color, focused }: { on: IconName; off: IconName; color: ColorValue; focused: boolean }) {
@@ -10,18 +10,20 @@ function TabIcon({ on, off, color, focused }: { on: IconName; off: IconName; col
 }
 
 export default function TabsLayout() {
-  const { c } = useTheme();
+  const { c, dark } = useTheme();
   const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: c.text,
+        tabBarActiveTintColor: c.accent,
         tabBarInactiveTintColor: c.faint,
         tabBarLabelStyle: { fontFamily: font.medium, fontSize: 11 },
         tabBarStyle: {
-          backgroundColor: c.bg, borderTopColor: c.border, borderTopWidth: StyleSheet.hairlineWidth,
-          height: 64 + Math.max(insets.bottom, 8), paddingTop: 6, paddingBottom: Math.max(insets.bottom, 8), elevation: 0,
+          backgroundColor: c.surface, borderTopColor: c.border, borderTopWidth: dark ? StyleSheet.hairlineWidth : 0,
+          borderTopLeftRadius: 24, borderTopRightRadius: 24,
+          height: 64 + Math.max(insets.bottom, 8), paddingTop: 6, paddingBottom: Math.max(insets.bottom, 8),
+          ...cardShadow(c, dark), shadowOffset: { width: 0, height: -6 }, elevation: 12,
         },
         sceneStyle: { backgroundColor: c.bg },
       }}

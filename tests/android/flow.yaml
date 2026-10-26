@@ -87,6 +87,26 @@ appId: com.tuitionbook.app
 - takeScreenshot: 09-student
 - back
 
+# Notes Check: open a subject, a student, tick a chapter (30 by default)
+- tapOn: "More"
+- tapOn: "Notes Check"
+- extendedWaitUntil:
+    visible: "Maths"
+    timeout: 20000
+- tapOn: "Maths"
+- extendedWaitUntil:
+    visible: "Aarav Sharma"
+    timeout: 20000
+- tapOn: "Aarav Sharma"
+- extendedWaitUntil:
+    visible: "Tap a chapter to tick it"
+    timeout: 20000
+- assertVisible: "Chapter 30"
+- takeScreenshot: 14-notes-grid
+- back
+- back
+- back
+
 # Backup screen shows the Google connect button on a real device
 - tapOn: "More"
 - tapOn: "Backup & restore"

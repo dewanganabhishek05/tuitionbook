@@ -1,6 +1,16 @@
 # TuitionBook — Test report
 
-**Date:** 29 Sep 2026 · **Build:** Expo SDK 57 / React Native 0.86 · **Result:** 50/50 data tests, 35/35 UI flows, and the Android emulator run all passing
+**Date:** 29 Sep 2026 · **Build:** Expo SDK 57 / React Native 0.86 · **Result:** 57/57 data tests, 45/45 UI flows, and the Android emulator run all passing
+
+## v1.2.0: themes, Sunday-aware calendar, Notes Check
+
+| Check | Result |
+|---|---|
+| Data tests (`npm test`) | 57/57 pass. New: Notes Check (30 chapters by default, tick/untick, check all, lowering chapters, active students only, cascade delete, backup round trip, old backups without it, upgrade from the v3 database) |
+| UI flows (`tests/e2e/flows.mjs`) | 45/45 pass. New: Light by default, Dark persists after reload, Sundays disabled in the calendar, Record payment on the student page, the Notes Check flow, its entry points |
+| Typecheck and lint | Clean |
+
+**Found while testing v1.2.0:** the first dark-mode build kept its setting in a store that clashes with the web database; it now uses plain localStorage (synchronous on phones as well).
 
 ## v1.1.0: no batches, new Calendar
 
