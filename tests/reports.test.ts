@@ -161,6 +161,19 @@ describe('student reports', () => {
   });
 });
 
+describe('excel bytes', () => {
+  it('are a real Uint8Array holding a zip (xlsx) file', async () => {
+    setNow('2026-10-15');
+    const db = await freshDb();
+    await student(db, 'Asha');
+    await repo.ensureDues(db);
+    const bytes = reportToXlsx(await feesReport(db, '2026-10'));
+    assert.ok(bytes instanceof Uint8Array);
+    assert.equal(Object.prototype.toString.call(bytes), '[object Uint8Array]');
+    assert.deepEqual([bytes[0], bytes[1]], [0x50, 0x4b]); // "PK"
+  });
+});
+
 describe('html', () => {
   it('escapes names and shows formatted money, percentages and totals', async () => {
     setNow('2026-10-15');

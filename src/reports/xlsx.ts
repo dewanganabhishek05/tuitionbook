@@ -43,5 +43,6 @@ export function reportToXlsx(r: Report): Uint8Array {
     used.add(name.toLowerCase());
     XLSX.utils.book_append_sheet(wb, sheetFor(t), name);
   }
-  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as Uint8Array;
+  // XLSX returns an ArrayBuffer here; the native file writer wants a real Uint8Array
+  return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer);
 }
