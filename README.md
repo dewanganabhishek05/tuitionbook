@@ -32,16 +32,9 @@ No setup: open the app, add your students, and start.
   - change a single mark, or open the full roll.
 - The month summary shows days taken, holidays and average attendance, plus each student's % for the month.
 
-**Notes Check** (for school students)
-- **More → Notes Check**, or the Notes shortcut on Today. Add subjects with the **Subject** button (30 chapters by default; change it per subject).
-- Open a subject to see every active student with their progress. Tap a student for a grid of chapter numbers; tap a number to tick it (tap again to untick). **Check all** / **Clear all** are there too.
-- Ticks are saved on the phone and included in backups.
-
-- **Mark chapters for all students** (inside a subject) opens a grid: tap a chapter to tick it for every student at once, tap again to clear it. Partly ticked chapters show how many students have them. **Check all** / **Clear all** work for everyone too.
-
 **Reports** (More → Reports)
-- Pick a month, then download **Attendance**, **Notes Check**, **Fees** or **Student-wise** reports as **PDF** or **Excel** (opens the share sheet: save to Files, send on WhatsApp, email…).
-- Attendance: per-student totals plus a day-by-day grid. Notes Check: an overview and one sheet per subject with a tick per chapter. Fees: who paid and who is pending, plus the payments received that month. Student-wise: one student's attendance, fees, payments and notes, or a summary line for everyone.
+- Pick a month, then download **Attendance**, **Fees** or **Student-wise** reports as **PDF** or **Excel** (opens the share sheet: save to Files, send on WhatsApp, email…).
+- Attendance: per-student totals plus a day-by-day grid. Fees: who paid and who is pending, plus the payments received that month. Student-wise: one student's attendance, fees and payments, or a summary line for everyone.
 
 **Appearance**
 - Settings → Appearance: **Light** (default) or **Dark**. Your choice is remembered.
@@ -173,12 +166,12 @@ src/
 ```bash
 npm run typecheck
 npm run lint
-npm test          # 68 data-layer tests on real SQLite with a fake clock
+npm test          # 61 data-layer tests on real SQLite with a fake clock
 ```
 
 `npm test` covers month and year boundaries, leap years, archive and restore, joining-date and fee edits, partial payments, overpayments, overdue rules, attendance rules, search, cascade deletes, and backup/restore including failure rollback.
 
-End-to-end UI flows (51 of them) run against the web preview:
+End-to-end UI flows (47 of them) run against the web preview:
 
 ```bash
 npx expo start --web --port 8081

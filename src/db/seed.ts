@@ -2,7 +2,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { addDays, addMonths, currentMonth, isoWeekday, today } from '../lib/dates';
 import { notifyChange, quietly } from './live';
-import { saveSubject } from './notes';
 import { ensureDues, saveRoll, saveStudent, setHoliday, setMark } from './repo';
 import type { AttendanceStatus, PaymentMode } from './types';
 
@@ -71,27 +70,12 @@ async function seed(db: SQLiteDatabase) {
       d.id, amount, paidOn, modes[d.student_id % 4], '', new Date().toISOString(),
     );
   }
-  // Notes Check: three subjects with a spread of progress per student.
-  for (const [si, name] of ['Maths', 'Science', 'English'].entries()) {
-    const found = await db.getFirstAsync<{ id: number }>('SELECT id FROM subjects WHERE name = ?', name);
-    const subjectId = found?.id ?? (await saveSubject(db, { name, chapters: 30 }));
-    for (const [k, sid] of ids.entries()) {
-      const upto = (k * 5 + si * 7) % 31; // 0..30 chapters done, in order
-      for (let ch = 1; ch <= upto; ch++) {
-        if ((ch + k) % 9 === 0) continue; // a few gaps
-        await db.runAsync(
-          'INSERT OR IGNORE INTO note_checks (subject_id, student_id, chapter, checked_at) VALUES (?, ?, ?, ?)',
-          subjectId, sid, ch, new Date().toISOString(),
-        );
-      }
-    }
-  }
   notifyChange();
 }
 
 export async function wipeAll(db: SQLiteDatabase) {
   await db.execAsync(`
-    DELETE FROM note_checks; DELETE FROM subjects; DELETE FROM payments; DELETE FROM fee_dues; DELETE FROM attendance; DELETE FROM holidays; DELETE FROM students;
+    DELETE FROM payments; DELETE FROM fee_dues; DELETE FROM attendance; DELETE FROM holidays; DELETE FROM students;
     DELETE FROM sqlite_sequence;`);
   notifyChange();
 }

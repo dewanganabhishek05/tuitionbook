@@ -4,7 +4,7 @@ import { Pressable, View } from 'react-native';
 import { useDb, useLive } from '../db/live';
 import { listStudents } from '../db/repo';
 import { addMonths, currentMonth, formatMonth } from '../lib/dates';
-import { attendanceReport, feesReport, notesReport, studentReport } from '../reports/data';
+import { attendanceReport, feesReport, studentReport } from '../reports/data';
 import { exportReport, type ReportFormat } from '../reports/export';
 import type { Report } from '../reports/types';
 import { Avatar, Button, Card, Divider, Field, IconButton, Row, Screen, Section, Sheet, Text, notify } from '../ui/kit';
@@ -74,17 +74,12 @@ export default function Reports() {
       </Card>
 
       <Card>
-        {tile('book-outline', 'Notes Check report', 'Every subject, student by student and chapter by chapter.')}
-        {buttons('notes', () => notesReport(db))}
-      </Card>
-
-      <Card>
         {tile('wallet-outline', 'Fees report', 'Who has paid and who is pending for the month, with the payments received.')}
         {buttons('fees', () => feesReport(db, month))}
       </Card>
 
       <Card>
-        {tile('person-outline', 'Student-wise report', "One student's attendance, fees, payments and notes, or a summary of everyone.")}
+        {tile('person-outline', 'Student-wise report', "One student's attendance, fees and payments, or a summary of everyone.")}
         <Pressable
           accessibilityLabel="Choose student"
           onPress={() => setPicking(true)}

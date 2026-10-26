@@ -127,6 +127,11 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_note_checks_student ON note_checks(student_id);
   `,
+  // v5: Notes Check was removed; drop its tables (shipped in v4, so the v4 migration stays as is).
+  `
+  DROP TABLE IF EXISTS note_checks;
+  DROP TABLE IF EXISTS subjects;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
@@ -137,8 +142,6 @@ export const TABLES = {
   students: ['id', 'name', 'parent_phone', 'class_name', 'joining_date', 'monthly_fee', 'status', 'notes', 'created_at', 'fees_resume'],
   attendance: ['id', 'student_id', 'date', 'status', 'note'],
   holidays: ['date', 'name'],
-  subjects: ['id', 'name', 'chapters', 'created_at'],
-  note_checks: ['subject_id', 'student_id', 'chapter', 'checked_at'],
   fee_dues: ['id', 'student_id', 'month', 'amount_due'],
   payments: ['id', 'fee_due_id', 'amount', 'paid_on', 'mode', 'note', 'created_at'],
 } as const;

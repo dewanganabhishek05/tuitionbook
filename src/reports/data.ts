@@ -1,6 +1,5 @@
 // Builds report data from the database. Pure data in, no formatting of files here.
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { listSubjects } from '../db/notes';
 import { feeStatus, getSettings, listFeesForMonth, listFeesForStudent } from '../db/repo';
 import { addMonths, currentMonth, daysInMonth, formatDate, formatMonth, isoWeekday, monthRange, monthOf, today } from '../lib/dates';
 import { pct, rupees } from '../lib/format';
@@ -93,63 +92,6 @@ export async function attendanceReport(db: SQLiteDatabase, month: string): Promi
   };
 }
 
-/* -------------------------------------------------------------------- notes */
-
-export async function notesReport(db: SQLiteDatabase): Promise<Report> {
-  const m = await meta(db);
-  const subjects = await listSubjects(db);
-  if (!subjects.length) throw new Error('Add a subject in Notes Check first.');
-  const students = await activeStudents(db);
-  if (!students.length) throw new Error('There are no students to report on.');
-  const checks = await db.getAllAsync<{ subject_id: number; student_id: number; chapter: number }>(
-    'SELECT subject_id, student_id, chapter FROM note_checks',
-  );
-  const done = new Map<string, Set<number>>();
-  for (const c of checks) {
-    const k = `${c.subject_id}|${c.student_id}`;
-    if (!done.has(k)) done.set(k, new Set());
-    done.get(k)!.add(c.chapter);
-  }
-  const count = (sid: number, stu: number) => done.get(`${sid}|${stu}`)?.size ?? 0;
-  const totalChapters = subjects.reduce((a, s) => a + s.chapters, 0);
-
-  const overview: Table = {
-    name: 'Overview',
-    columns: ['Student', 'Class', ...subjects.map((s) => `${s.name} (of ${s.chapters})`), 'Overall %'],
-    rows: students.map((st) => {
-      const per = subjects.map((s) => count(s.id, st.id));
-      return [st.name, st.class_name, ...per, pct(per.reduce((a, b) => a + b, 0), totalChapters)];
-    }),
-    fmt: ['text', 'text', ...subjects.map(() => 'int' as const), 'pct'],
-  };
-  const used = new Set<string>(['Overview']);
-  const perSubject: Table[] = subjects.map((s) => {
-    let name = s.name.replace(/[\\/?*[\]:]/g, ' ').trim().slice(0, 31) || 'Subject';
-    for (let i = 2; used.has(name.toLowerCase()) || used.has(name); i++) name = `${name.slice(0, 28)} ${i}`;
-    used.add(name);
-    const chapters = Array.from({ length: s.chapters }, (_, i) => i + 1);
-    return {
-      name,
-      columns: ['Student', 'Done', '%', ...chapters.map(String)],
-      rows: students.map((st) => {
-        const set = done.get(`${s.id}|${st.id}`) ?? new Set<number>();
-        return [st.name, set.size, pct(set.size, s.chapters), ...chapters.map((c) => (set.has(c) ? '✓' : ''))];
-      }),
-      fmt: ['text', 'int', 'pct', ...chapters.map(() => 'center' as const)],
-    };
-  });
-  const allDone = students.reduce((a, st) => a + subjects.reduce((b, s) => b + count(s.id, st.id), 0), 0);
-  return {
-    key: 'notes', title: 'Notes Check report', subtitle: `As on ${formatDate(today())}`,
-    fileBase: `TuitionBook-Notes-Check-${today()}`, landscape: true,
-    summary: [
-      ['Subjects', subjects.map((s) => s.name).join(', ')], ['Students', String(students.length)],
-      ['Overall notes checked', `${pct(allDone, students.length * totalChapters)}%`],
-    ],
-    tables: [overview, ...perSubject], owner: m.owner, generatedOn: m.generatedOn,
-  };
-}
-
 /* --------------------------------------------------------------------- fees */
 
 export async function feesReport(db: SQLiteDatabase, month: string): Promise<Report> {
@@ -201,8 +143,6 @@ export async function feesReport(db: SQLiteDatabase, month: string): Promise<Rep
 /** One student in detail, or `'all'` for a one-line-per-student summary. */
 export async function studentReport(db: SQLiteDatabase, who: number | 'all'): Promise<Report> {
   const m = await meta(db);
-  const subjects = await listSubjects(db);
-  const totalChapters = subjects.reduce((a, s) => a + s.chapters, 0);
 
   if (who === 'all') {
     const students = await activeStudents(db);
@@ -215,10 +155,9 @@ export async function studentReport(db: SQLiteDatabase, who: number | 'all'): Pr
         `SELECT COALESCE(SUM(d.amount_due),0) AS due,
            COALESCE(SUM(MIN(d.amount_due, (SELECT COALESCE(SUM(p.amount),0) FROM payments p WHERE p.fee_due_id = d.id))),0) AS paid
          FROM fee_dues d WHERE d.student_id = ?`, s.id);
-      const n = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM note_checks WHERE student_id = ?', s.id);
       rows.push([
         s.name, s.class_name, s.parent_phone, a!.p, a!.a, a!.l, a!.p + a!.a ? pct(a!.p, a!.p + a!.a) : null,
-        f!.due, f!.paid, f!.due - f!.paid, totalChapters ? pct(n!.c, totalChapters) : null,
+        f!.due, f!.paid, f!.due - f!.paid,
       ]);
     }
     return {
@@ -227,8 +166,8 @@ export async function studentReport(db: SQLiteDatabase, who: number | 'all'): Pr
       summary: [['Students', String(students.length)], ['Fee pending (all months)', rupees(rows.reduce((a, r) => a + (r[9] as number), 0))]],
       tables: [{
         name: 'Students',
-        columns: ['Student', 'Class', 'Parent phone', 'Present', 'Absent', 'Leave', 'Attendance %', 'Fee due', 'Paid', 'Pending', 'Notes checked %'],
-        rows, fmt: ['text', 'text', 'text', 'int', 'int', 'int', 'pct', 'money', 'money', 'money', 'pct'],
+        columns: ['Student', 'Class', 'Parent phone', 'Present', 'Absent', 'Leave', 'Attendance %', 'Fee due', 'Paid', 'Pending'],
+        rows, fmt: ['text', 'text', 'text', 'int', 'int', 'int', 'pct', 'money', 'money', 'money'],
       }],
       owner: m.owner, generatedOn: m.generatedOn,
     };
@@ -253,9 +192,6 @@ export async function studentReport(db: SQLiteDatabase, who: number | 'all'): Pr
   const pays = await db.getAllAsync<{ paid_on: string; month: string; amount: number; mode: string; note: string }>(
     `SELECT p.paid_on, d.month, p.amount, p.mode, p.note FROM payments p JOIN fee_dues d ON d.id = p.fee_due_id
      WHERE d.student_id = ? ORDER BY p.paid_on, p.id`, who);
-  const checks = await db.getAllAsync<{ subject_id: number; c: number }>(
-    'SELECT subject_id, COUNT(*) AS c FROM note_checks WHERE student_id = ? GROUP BY subject_id', who);
-  const cmap = new Map(checks.map((c) => [c.subject_id, c.c]));
   const outstanding = fees.reduce((a, f) => a + Math.max(0, f.amount_due - f.paid), 0);
 
   const tables: Table[] = [
@@ -275,11 +211,6 @@ export async function studentReport(db: SQLiteDatabase, who: number | 'all'): Pr
       name: 'Payments', columns: ['Date', 'For month', 'Amount', 'Mode', 'Note'],
       rows: pays.map((p) => [formatDate(p.paid_on), formatMonth(p.month, false), p.amount, MODE[p.mode] ?? p.mode, p.note]),
       fmt: ['text', 'text', 'money', 'text', 'text'], emptyNote: 'No payments yet.',
-    },
-    {
-      name: 'Notes Check', columns: ['Subject', 'Chapters done', 'Total chapters', '%'],
-      rows: subjects.map((sub) => [sub.name, cmap.get(sub.id) ?? 0, sub.chapters, pct(cmap.get(sub.id) ?? 0, sub.chapters)]),
-      fmt: ['text', 'int', 'int', 'pct'], emptyNote: 'No subjects added in Notes Check.',
     },
   ];
   return {

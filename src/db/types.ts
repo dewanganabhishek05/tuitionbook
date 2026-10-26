@@ -86,26 +86,3 @@ export interface Settings {
   last_backup_at: string;
   last_backup_where: string;
 }
-
-export const DEFAULT_CHAPTERS = 30;
-export const MAX_CHAPTERS = 100;
-
-export interface Subject {
-  id: number;
-  name: string;
-  chapters: number;
-  created_at: string;
-}
-
-export interface SubjectListItem extends Subject {
-  students: number;
-  /** Checked chapters summed over active students. */
-  checked: number;
-}
-
-export interface SubjectStudent {
-  student_id: number;
-  name: string;
-  class_name: string;
-  checked: number;
-}

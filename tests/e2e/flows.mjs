@@ -603,85 +603,6 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await page.screenshot({ path: `${OUT}student-record-payment.png` });
   });
 
-  await step('Notes Check: subjects, students, and a 30-chapter tick grid', async () => {
-    await go('/notes');
-    await see('Notes Check');
-    for (const s of ['Maths', 'Science', 'English']) await see(s, true);
-    // add a subject: 30 chapters by default
-    await label('Subject').click();
-    await see('Number of chapters');
-    const vals = await page.locator('input').filter({ visible: true }).evaluateAll((els) => els.map((e) => e.value));
-    if (!vals.includes('30')) throw new Error(`chapters default is not 30: ${vals}`);
-    await fill('e.g. Maths', 'Hindi');
-    await page.getByText('Add subject', { exact: true }).filter({ visible: true }).last().click();
-    await see('Hindi', true);
-    // open it: every student is listed
-    await text('Hindi', true).click();
-    await see('30 chapters');
-    await see('Aarav Sharma', true);
-    await text('Aarav Sharma', true).click();
-    await label('Chapter 30').waitFor({ state: 'visible' });
-    if (await page.getByLabel('Chapter 31', { exact: true }).count()) throw new Error('more than 30 chapters');
-    await see('30 left');
-    await label('Chapter 5').click();
-    await see('29 left');
-    const bg = await label('Chapter 5').evaluate((e) => getComputedStyle(e).backgroundColor);
-    if (bg !== 'rgb(91, 92, 240)') throw new Error(`chapter 5 not ticked (bg ${bg})`);
-    await label('Chapter 5').click();
-    await see('30 left');
-    await click('Check all');
-    await see('All chapters checked');
-    await page.screenshot({ path: `${OUT}notes-grid.png` });
-    await click('Clear all');
-    await see('30 left');
-    // progress shows on the list, then edit chapters to 12 and delete the subject
-    await label('Chapter 3').click();
-    await label('Back').click();
-    await see('1/30');
-    await label('Edit subject').click();
-    const num = page.locator('input').filter({ visible: true }).nth(1);
-    await num.fill('12');
-    await page.getByText('Save', { exact: true }).filter({ visible: true }).last().click();
-    await see('12 chapters');
-    await label('Delete subject').click();
-    await see('Notes Check');
-    await notSee('Hindi', true);
-  });
-
-  await step('Notes Check entry points: Today quick action and More', async () => {
-    await go('/');
-    await label('Quick action Notes Check').click();
-    await see('For school students');
-    await go('/more');
-    await click('Notes Check', true);
-    await see('For school students');
-  });
-
-  /* --------------------------------------------------------- new in 1.3 */
-  const ACCENT = 'rgb(91, 92, 240)';
-  const bgOf = (loc) => loc.evaluate((e) => getComputedStyle(e).backgroundColor);
-
-  await step('Notes Check: mark a chapter for all students, and unmark it', async () => {
-    await go('/notes');
-    await text('Maths', true).click();
-    await see('Mark chapters for all students');
-    await click('Mark chapters for all students');
-    await see('All students');
-    await label('Chapter 30 for all students').click();
-    await page.waitForTimeout(500);
-    if ((await bgOf(label('Chapter 30 for all students'))) !== ACCENT) throw new Error('chapter 30 is not ticked for all');
-    await see('/ 30 chapters done by everyone');
-    await page.screenshot({ path: `${OUT}notes-all.png` });
-    await label('Back').click();
-    await text('Aarav Sharma', true).click();
-    if ((await bgOf(label('Chapter 30'))) !== ACCENT) throw new Error('Aarav does not have chapter 30');
-    await label('Back').click();
-    await click('Mark chapters for all students');
-    await label('Chapter 30 for all students').click();
-    await page.waitForTimeout(500);
-    if ((await bgOf(label('Chapter 30 for all students'))) === ACCENT) throw new Error('chapter 30 was not cleared for all');
-  });
-
   const { createRequire: cr } = await import('node:module');
   const XLSX = cr(import.meta.url)('xlsx');
   const excelBtn = (n) => page.getByText('Excel', { exact: true }).filter({ visible: true }).nth(n);
@@ -695,10 +616,9 @@ const lastAlert = () => alerts.at(-1) ?? '';
 
   await step('Reports: More has a Reports section; month picker stops at this month', async () => {
     await go('/more');
-    await click('Attendance, Notes Check, fees');
+    await click('Attendance, fees');
     await see('Download as PDF or Excel');
     await see('Attendance report');
-    await see('Notes Check report');
     await see('Fees report');
     await see('Student-wise report');
     await label('Next month').click();
@@ -718,12 +638,8 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await popup.close();
   });
 
-  await step('Notes Check, Fees and previous-month reports download as Excel', async () => {
-    const notesX = await downloadXlsx(1);
-    if (notesX.wb.SheetNames.join() !== 'Overview,Overview 2,English,Maths,Science') throw new Error(notesX.wb.SheetNames.join());
-    const maths = XLSX.utils.sheet_to_json(notesX.wb.Sheets.Maths, { header: 1 });
-    if (maths[0].length !== 33) throw new Error(`maths columns ${maths[0].length}`);
-    const feesX = await downloadXlsx(2);
+  await step('Fees report downloads as Excel; a month with no fees explains itself', async () => {
+    const feesX = await downloadXlsx(1);
     if (!/^TuitionBook-Fees-/.test(feesX.name) || feesX.wb.SheetNames.join() !== 'Overview,Fees,Payments received') throw new Error(feesX.name + feesX.wb.SheetNames);
     const fees = XLSX.utils.sheet_to_json(feesX.wb.Sheets.Fees, { header: 1 });
     if (fees.length < 20) throw new Error('fees rows ' + fees.length);
@@ -732,34 +648,26 @@ const lastAlert = () => alerts.at(-1) ?? '';
     await label('Previous month').click();
     await label('Previous month').click();
     const old = page.waitForEvent('dialog');
-    await excelBtn(2).click();
+    await excelBtn(1).click();
     const dlg = await old; // accepted by the global handler
     if (!/no fees/i.test(dlg.message())) throw new Error(dlg.message());
   });
 
   await step('Student-wise report: choose one student or everyone', async () => {
     await go('/reports');
-    if (await excelBtn(3).isEnabled().catch(() => true)) { /* button looks enabled; the real check is below */ }
+    if (await excelBtn(2).isEnabled().catch(() => true)) { /* button looks enabled; the real check is below */ }
     await label('Choose student').click();
     await see('All students');
     await ph('Search name, phone or class').fill('Aarav');
     await text('Aarav Sharma', true).click();
     await see('Aarav Sharma');
-    const one = await downloadXlsx(3);
-    if (!/^TuitionBook-Student-Aarav-Sharma-/.test(one.name) || one.wb.SheetNames.join() !== 'Overview,Attendance,Fees,Payments,Notes Check') throw new Error(one.name + one.wb.SheetNames);
+    const one = await downloadXlsx(2);
+    if (!/^TuitionBook-Student-Aarav-Sharma-/.test(one.name) || one.wb.SheetNames.join() !== 'Overview,Attendance,Fees,Payments') throw new Error(one.name + one.wb.SheetNames);
     await label('Choose student').click();
     await text('All students', true).click();
-    const all = await downloadXlsx(3);
+    const all = await downloadXlsx(2);
     const rows = XLSX.utils.sheet_to_json(all.wb.Sheets.Students, { header: 1 });
     if (rows.length !== 19) throw new Error('students rows ' + rows.length);
-  });
-
-  await step('The add-subject sheet is scrollable above the keyboard area (web: fields still reachable)', async () => {
-    await go('/notes');
-    await label('Subject').click();
-    await see('Number of chapters');
-    const box = await page.getByText('Add subject', { exact: true }).filter({ visible: true }).last().boundingBox();
-    if (!box || box.y + box.height > 844) throw new Error('Add subject button is off-screen');
   });
 
   await step('No JavaScript errors during the whole run', async () => {

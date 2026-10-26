@@ -87,53 +87,9 @@ appId: com.tuitionbook.app
 - takeScreenshot: 09-student
 - back
 
-# Notes Check: open a subject, a student, tick a chapter (30 by default)
-- tapOn: "More"
-- tapOn: "Notes Check"
-- extendedWaitUntil:
-    visible: "Maths"
-    timeout: 20000
-- tapOn: "Maths"
-- extendedWaitUntil:
-    visible: "Aarav Sharma"
-    timeout: 20000
-- tapOn: "Aarav Sharma"
-- extendedWaitUntil:
-    visible: "Tap a chapter to tick it"
-    timeout: 20000
-- assertVisible: "Chapter 30"
-- takeScreenshot: 14-notes-grid
-- back
-# Mark a chapter for all students
-- tapOn: "Mark chapters for all students"
-- extendedWaitUntil:
-    visible: "All students"
-    timeout: 20000
-- tapOn: "Chapter 12 for all students"
-- takeScreenshot: 15-notes-all
-- back
-- back
-
-# Add a subject: the sheet must sit above the keyboard
-- tapOn: "Subject"
-- extendedWaitUntil:
-    visible: "Number of chapters"
-    timeout: 20000
-- tapOn: "e.g. Maths"
-- inputText: "Hindi"
-- takeScreenshot: 16-subject-sheet-keyboard
-- hideKeyboard
-- tapOn:
-    text: "Add subject"
-    index: 1
-- extendedWaitUntil:
-    visible: "Hindi"
-    timeout: 20000
-- back
-
 # Reports: PDF and Excel each open the share sheet
 - tapOn: "More"
-- tapOn: "Attendance, Notes Check.*"
+- tapOn: "Attendance, fees.*"
 - extendedWaitUntil:
     visible: "Download as PDF or Excel"
     timeout: 20000

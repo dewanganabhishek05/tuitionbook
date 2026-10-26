@@ -2,6 +2,15 @@
 
 **Date:** 29 Sep 2026 · **Build:** Expo SDK 57 / React Native 0.86 · **Result:** 57/57 data tests, 45/45 UI flows, and the Android emulator run all passing
 
+## v1.3.1: Notes Check removed
+
+Notes Check (added in 1.2.0) was taken out again: its screens, its report, and its two database tables (dropped by migration v5, so upgrading from 1.2/1.3.0 keeps every student, fee and attendance record). Backups made by 1.2/1.3.0 that contain Notes Check still restore; that part is ignored.
+
+| Check | Result |
+|---|---|
+| Data tests (`npm test`) | 61/61 pass. New: upgrading a 1.3.0 database, restoring a 1.3.0 backup, new backups have no Notes Check tables |
+| Typecheck and lint | Clean |
+
 ## v1.3.0: reports, mark for all students, keyboard-aware sheet
 
 | Check | Result |

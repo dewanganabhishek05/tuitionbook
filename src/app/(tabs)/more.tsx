@@ -24,15 +24,9 @@ export default function MoreScreen() {
 
   return (
     <Screen title="More">
-      <Section title="School">
-        <Card padded={false}>
-          <Row left={<Icon name="book-outline" />} title="Notes Check" subtitle="Tick off each chapter's notes, subject by subject" onPress={() => router.push('/notes')} />
-        </Card>
-      </Section>
-
       <Section title="Reports">
         <Card padded={false}>
-          <Row left={<Icon name="document-text-outline" />} title="Reports" subtitle="Attendance, Notes Check, fees and student-wise, as PDF or Excel" onPress={() => router.push('/reports')} />
+          <Row left={<Icon name="document-text-outline" />} title="Reports" subtitle="Attendance, fees and student-wise, as PDF or Excel" onPress={() => router.push('/reports')} />
         </Card>
       </Section>
 

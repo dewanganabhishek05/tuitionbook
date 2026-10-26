@@ -97,7 +97,6 @@ function QuickActions() {
   const items: { label: string; icon: React.ComponentProps<typeof Ionicons>['name']; fg: string; bg: string; go: () => void }[] = [
     { label: 'Attendance', icon: 'checkmark-done', fg: c.accent, bg: c.accentSoft, go: () => router.push('/attendance') },
     { label: 'Calendar', icon: 'calendar', fg: c.warn, bg: c.warnSoft, go: () => router.navigate('/calendar') },
-    { label: 'Notes', icon: 'book', fg: c.good, bg: c.goodSoft, go: () => router.push('/notes') },
     { label: 'Fees', icon: 'wallet', fg: c.bad, bg: c.badSoft, go: () => router.navigate('/fees') },
   ];
   return (
@@ -105,7 +104,7 @@ function QuickActions() {
       {items.map((it) => (
         <Pressable
           key={it.label}
-          accessibilityLabel={`Quick action ${it.label === 'Notes' ? 'Notes Check' : it.label}`}
+          accessibilityLabel={`Quick action ${it.label}`}
           onPress={() => { tap(); it.go(); }}
           style={({ pressed }) => ({ flex: 1, alignItems: 'center', gap: 8, opacity: pressed ? 0.7 : 1 })}
         >
