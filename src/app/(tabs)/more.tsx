@@ -32,6 +32,8 @@ export default function MoreScreen() {
 
       <Section title="Data">
         <Card padded={false}>
+          <Row left={<Icon name="people-outline" />} title="Upload student data" subtitle="Add many students from a photo, PDF, Excel or other file" onPress={() => router.push('/import')} />
+          <Divider inset={64} />
           <Row
             left={<Icon name="cloud-upload-outline" tone={stale ? 'warn' : undefined} />}
             title="Backup & restore"

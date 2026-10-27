@@ -2,7 +2,7 @@
   "expo": {
     "name": "TuitionBook",
     "slug": "tuitionbook",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -24,7 +24,7 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
-      "versionCode": 6
+      "versionCode": 7
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -35,6 +35,14 @@
       "expo-sqlite",
       "expo-sharing",
       "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "TuitionBook uses the camera to take a photo of a student list.",
+          "microphonePermission": false,
+          "photosPermission": false
+        }
+      ],
       [
         "expo-splash-screen",
         {

@@ -670,6 +670,106 @@ const lastAlert = () => alerts.at(-1) ?? '';
     if (rows.length !== 19) throw new Error('students rows ' + rows.length);
   });
 
+  /* ------------------------------------------------------------ upload student data */
+  const pickFile = async (file) => {
+    const chooser = page.waitForEvent('filechooser');
+    await click('Choose a file (PDF, Excel, Word…)');
+    await (await chooser).setFiles(file);
+  };
+
+  await step('Upload student data: listed in More, opens the picker screen', async () => {
+    await go('/more');
+    await see('Upload student data');
+    await click('Upload student data');
+    await see('Choose where your list is');
+    await see('You will see every student before anything is added.');
+  });
+
+  await step('CSV: review shows every student, duplicates are unticked', async () => {
+    const csv = 'Sr No,Student Name,Class,Parent Mobile,Monthly Fee,Date of Joining\n'
+      + '1,AARAV SHARMA,8,98765 43210,1500,05/06/2025\n'
+      + '2,Riya Patel,Class 9,91234-56789,"1,800",2025-07-01\n'
+      + '3,Kabir Mehra,10th,9811122333,,\n'
+      + '4,Total,,,,\n';
+    await pickFile({ name: 'students.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+    await see('Review students');
+    await see('3 found · 2 selected');
+    await see('Riya Patel', true);
+    await see('Class 9 · ₹1,800');
+    await see('In your list');
+    await label('Skipped: Aarav Sharma').waitFor({ state: 'visible' });
+    await label('Included: Kabir Mehra').waitFor({ state: 'visible' });
+    await page.screenshot({ path: OUT + 'import-review.png' });
+  });
+
+  await step('Review: tap to skip, All / None, edit a student', async () => {
+    await label('Included: Kabir Mehra').click();
+    await label('Skipped: Kabir Mehra').waitFor({ state: 'visible' });
+    await see('3 found · 1 selected');
+    await click('All', true);
+    await see('3 found · 3 selected');
+    await label('Edit Riya Patel').click();
+    await see('Edit student');
+    await see('Read from: ', false);
+  });
+
+  await step('Edit sheet saves changes; validation rejects a bad phone', async () => {
+    // fields in the sheet: name, phone, class, fee, joining (the page behind has two more inputs, so find by value)
+    const byValue = async (v) => { const all = page.locator('input:visible'); const n = await all.count(); for (let i = 0; i < n; i++) if ((await all.nth(i).inputValue()) === v) return all.nth(i); throw new Error('no input ' + v); };
+    const nameBox = await byValue('Riya Patel');
+    await nameBox.fill('Riya P. Patel');
+    const phoneBox = await byValue('9123456789');
+    await phoneBox.fill('12345');
+    await click('Save', true);
+    await see('Enter a 10-digit number, or leave it empty');
+    await phoneBox.fill('9123456789');
+    await click('Save', true);
+    await see('Riya P. Patel', true);
+  });
+
+  await step('Adding: only ticked students are created, with file values and defaults', async () => {
+    await label('Included: Riya P. Patel').waitFor({ state: 'visible' });
+    await label('Included: Aarav Sharma').click(); // "All" ticked the duplicate too: untick it
+    await label('Skipped: Aarav Sharma').waitFor({ state: 'visible' });
+    await see('Add 2 students');
+    await click('Add 2 students');
+    await see('2 students added');
+    await click('View students');
+    await see('Riya P. Patel', true);
+    await see('Kabir Mehra', true);
+    await vis(page.getByText('Aarav Sharma', { exact: true })).waitFor();
+    const n = await page.getByText('Aarav Sharma', { exact: true }).filter({ visible: true }).count();
+    if (n !== 1) throw new Error('Aarav Sharma added twice: ' + n);
+  });
+
+  await step('Excel: sheet name gives the class, number-formatted cells are read', async () => {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Name', 'Phone', 'Fees'], ['Tara Nair', 9000000011, 1200], ['Zoya Khan', 9000000012, 1200]]), 'Class 7');
+    const buffer = Buffer.from(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }));
+    await go('/import');
+    await pickFile({ name: 'class7.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer });
+    await see('2 found · 2 selected');
+    await see('Class 7 · ₹1,200');
+    await click('Add 2 students');
+    await see('2 students added');
+  });
+
+  await step('Plain text list and an unsupported file', async () => {
+    await go('/import');
+    await pickFile({ name: 'list.txt', mimeType: 'text/plain', buffer: Buffer.from('1. Neel Arora 9000000021 Class 6\n2. Pari Sethi 9000000022 Class 6\nSignature\n') });
+    await see('2 found · 2 selected');
+    await see('Show 1 line');
+    await click('Show 1 line');
+    await see('• Signature');
+    await go('/import');
+    await pickFile({ name: 'mystery.bin', mimeType: 'application/octet-stream', buffer: Buffer.from([0, 1, 2, 3, 250, 251, 0, 0, 9, 200, 0, 0]) });
+    await page.waitForTimeout(600);
+    if (!/not supported/i.test(lastAlert())) throw new Error('alert: ' + lastAlert());
+    await pickFile({ name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from([137, 80, 78, 71]) });
+    await page.waitForTimeout(600);
+    if (!/Android app/i.test(lastAlert())) throw new Error('web photo alert: ' + lastAlert());
+  });
+
   await step('No JavaScript errors during the whole run', async () => {
     if (pageErrors.length) throw new Error(pageErrors.join(' | '));
   });

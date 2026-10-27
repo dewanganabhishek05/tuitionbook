@@ -1,0 +1,23 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.tuitionbook.ocr'
+version = '1.0.0'
+
+android {
+  namespace "com.tuitionbook.ocr"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  // Latin-script text recognition, model bundled in the app so it works offline.
+  implementation 'com.google.mlkit:text-recognition:16.0.1'
+}

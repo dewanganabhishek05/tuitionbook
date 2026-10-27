@@ -29,11 +29,22 @@ if [ "$RC" -ne 0 ]; then
   RC=${PIPESTATUS[0]}
 fi
 
+# Upload-student-data flow: OCR of an image, a photo and a PDF pushed to Downloads. Run on its own so a
+# system file-picker hiccup is reported separately.
+adb shell mkdir -p /sdcard/Download
+for f in assets/*; do
+  adb push "$f" "/sdcard/Download/$(basename "$f")"
+  adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Download/$(basename "$f")" > /dev/null || true
+done
+maestro test import.yaml --format junit --output "$OUT/report-import.xml" --test-output-dir "$OUT/maestro-import" 2>&1 | tee "$OUT/maestro-import.log"
+IMPORT_RC=${PIPESTATUS[0]}
+echo "import-flow exit=$IMPORT_RC" | tee "$OUT/import-summary.txt"
+
 adb shell cmd uimode night yes || true
 maestro test dark.yaml --test-output-dir "$OUT/maestro-dark" 2>&1 | tee "$OUT/maestro-dark.log" || true
 
 adb logcat -d > "$OUT/logcat.txt"
 grep -nE "FATAL EXCEPTION|AndroidRuntime: |ReactNativeJS.*(Error|Exception)" "$OUT/logcat.txt" | grep -v "VM exiting" > "$OUT/crashes.txt" || true
 find . "$OUT" -name "*.png" -newer "$OUT/install.txt" -exec cp {} "$OUT/" \; 2>/dev/null || true
-echo "maestro exit=$RC crashes=$(wc -l < "$OUT/crashes.txt")" | tee "$OUT/summary.txt"
+echo "maestro exit=$RC import=$IMPORT_RC crashes=$(wc -l < "$OUT/crashes.txt")" | tee "$OUT/summary.txt"
 exit $RC

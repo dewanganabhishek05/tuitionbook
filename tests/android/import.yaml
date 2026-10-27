@@ -1,0 +1,77 @@
+# Upload student data on a real (offline) emulator: on-device OCR of an image, a photo-like JPEG and a PDF.
+# The sample files are pushed to Downloads by run-e2e.sh.
+appId: com.tuitionbook.app
+---
+- launchApp
+- extendedWaitUntil:
+    visible: ".*/18 paid"
+    timeout: 90000
+- tapOn: "More"
+- tapOn: "Upload student data"
+- extendedWaitUntil:
+    visible: "Choose where your list is"
+    timeout: 20000
+- takeScreenshot: 30-upload-start
+
+# 1) A scanned-style table image
+- tapOn: "Choose a file.*"
+- extendedWaitUntil:
+    visible: "list-table.png"
+    timeout: 30000
+- takeScreenshot: 31-file-picker
+- tapOn: "list-table.png"
+- extendedWaitUntil:
+    visible: "Review students"
+    timeout: 90000
+- assertVisible: "8 found · 8 selected"
+- assertVisible: "Aarav Sharma"
+- assertVisible: "Saanvi Nair"
+- assertVisible: ".*9876543210.*Class 8.*1,500.*"
+- takeScreenshot: 32-ocr-table-review
+- scrollUntilVisible:
+    element: "Add 8 students"
+- tapOn: "Add 8 students"
+- extendedWaitUntil:
+    visible: "8 students added"
+    timeout: 60000
+- takeScreenshot: 33-added-8
+
+# 2) A tilted, noisy photo
+- tapOn: "Upload another list"
+- tapOn: "Choose a file.*"
+- extendedWaitUntil:
+    visible: "list-photo.jpg"
+    timeout: 30000
+- tapOn: "list-photo.jpg"
+- extendedWaitUntil:
+    visible: "Review students"
+    timeout: 90000
+- assertVisible: "Tara Nair"
+- assertVisible: "Pari Sethi"
+- takeScreenshot: 34-ocr-photo-review
+- back
+
+# 3) A two-page PDF (rendered by Android's PdfRenderer, then read)
+- tapOn: "More"
+- tapOn: "Upload student data"
+- tapOn: "Choose a file.*"
+- extendedWaitUntil:
+    visible: "list.pdf"
+    timeout: 30000
+- tapOn: "list.pdf"
+- extendedWaitUntil:
+    visible: "Review students"
+    timeout: 90000
+- assertVisible: "6 found · 6 selected"
+- assertVisible: "Aditi Rao"
+- assertVisible: "Farhan Ali"
+- takeScreenshot: 35-pdf-review
+- tapOn: "Add 6 students"
+- extendedWaitUntil:
+    visible: "6 students added"
+    timeout: 60000
+- tapOn: "View students"
+- extendedWaitUntil:
+    visible: "Aditi Rao"
+    timeout: 20000
+- takeScreenshot: 36-students-after-import
