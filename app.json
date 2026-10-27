@@ -2,7 +2,7 @@
   "expo": {
     "name": "TuitionBook",
     "slug": "tuitionbook",
-    "version": "1.3.1",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -12,7 +12,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#4338CA",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -24,7 +24,7 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
-      "versionCode": 5
+      "versionCode": 6
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -35,6 +35,15 @@
       "expo-sqlite",
       "expo-sharing",
       "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "backgroundColor": "#FFFFFF",
+          "resizeMode": "contain"
+        }
+      ],
       [
         "@react-native-google-signin/google-signin",
         {
@@ -59,7 +68,6 @@
     },
     "experiments": {
       "typedRoutes": false
-    },
-    "splash": null
+    }
   }
 }
