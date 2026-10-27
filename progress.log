@@ -1,0 +1,80 @@
+[ 340s] > Task :expo-modules-core:generateReleaseLintModel
+[ 340s] > Task :expo-constants:generateReleaseLintModel
+[ 340s] > Task :expo-log-box:createFullJarRelease
+[ 340s] > Task :expo-log-box:generateReleaseLintModel
+[ 340s] > Task :tuition-ocr:createFullJarRelease
+[ 340s] > Task :tuition-ocr:generateReleaseLintModel
+[ 340s] > Task :expo:generateReleaseLintModel
+[ 340s] > Task :expo:extractReleaseAnnotations FROM-CACHE
+[ 341s] > Task :expo:mergeReleaseConsumerProguardFiles
+[ 341s] > Task :expo:mergeReleaseJavaResource
+[ 341s] > Task :expo:syncReleaseLibJars FROM-CACHE
+[ 341s] > Task :expo:bundleReleaseLocalLintAar
+[ 341s] > Task :expo-modules-core:stripReleaseDebugSymbols
+[ 341s] > Task :expo-modules-core:copyReleaseJniLibsProjectAndLocalJars
+[ 341s] > Task :expo-modules-core:extractReleaseAnnotations FROM-CACHE
+[ 341s] > Task :expo-modules-core:mergeReleaseConsumerProguardFiles
+[ 341s] > Task :expo-modules-core:mergeReleaseJavaResource
+[ 341s] > Task :expo-modules-core:syncReleaseLibJars FROM-CACHE
+[ 341s] > Task :expo-modules-core:bundleReleaseLocalLintAar
+[ 341s] > Task :expo-log-box:extractReleaseAnnotations FROM-CACHE
+[ 341s] > Task :expo-log-box:mergeReleaseConsumerProguardFiles
+[ 341s] > Task :expo-log-box:mergeReleaseJavaResource
+[ 341s] > Task :expo-log-box:syncReleaseLibJars FROM-CACHE
+[ 341s] > Task :expo-log-box:bundleReleaseLocalLintAar
+[ 341s] > Task :expo-constants:extractReleaseAnnotations FROM-CACHE
+[ 341s] > Task :expo-constants:mergeReleaseConsumerProguardFiles
+[ 341s] > Task :expo-constants:mergeReleaseJavaResource
+[ 341s] > Task :expo-constants:syncReleaseLibJars FROM-CACHE
+[ 341s] > Task :expo-constants:bundleReleaseLocalLintAar
+[ 341s] > Task :tuition-ocr:extractReleaseAnnotations FROM-CACHE
+[ 341s] > Task :tuition-ocr:mergeReleaseConsumerProguardFiles
+[ 341s] > Task :tuition-ocr:mergeReleaseJavaResource
+[ 341s] > Task :tuition-ocr:syncReleaseLibJars FROM-CACHE
+[ 341s] > Task :tuition-ocr:bundleReleaseLocalLintAar
+[ 349s] > Task :expo:lintVitalAnalyzeRelease
+[ 349s] > Task :expo-constants:lintVitalAnalyzeRelease
+[ 353s] > Task :react-native-gesture-handler:configureCMakeRelWithDebInfo[armeabi-v7a]
+[ 353s] > Task :app:configureCMakeRelWithDebInfo[armeabi-v7a]
+[ 353s] > Task :expo-log-box:lintVitalAnalyzeRelease
+[ 354s] > Task :react-native-gesture-handler:configureCMakeRelWithDebInfo[x86_64]
+[ 355s] > Task :app:configureCMakeRelWithDebInfo[x86_64]
+[ 355s] > Task :app:processReleaseMainManifest FROM-CACHE
+[ 356s] 
+[ 356s] > Task :app:expoReleaseOverrideMaxSdkConflicts
+[ 356s] [33m---------- Expo Max Sdk Override Plugin ----------[0m
+[ 356s] [32m>>> No 'android:maxSdkVersion' conflicts found[0m
+[ 356s] [33m--------------------------------------------------[0m
+[ 356s] 
+[ 356s] > Task :app:processReleaseManifest FROM-CACHE
+[ 356s] > Task :app:processReleaseManifestForPackage FROM-CACHE
+[ 356s] > Task :tuition-ocr:lintVitalAnalyzeRelease
+[ 356s] > Task :app:mergeReleaseArtProfile
+[ 357s] > Task :app:mergeReleaseAssets
+[ 357s] > Task :app:compressReleaseAssets
+[ 358s] > Task :expo:generateReleaseLintVitalModel
+[ 358s] > Task :expo-constants:generateReleaseLintVitalModel
+[ 358s] > Task :expo-log-box:generateReleaseLintVitalModel
+[ 358s] > Task :expo-modules-core:generateReleaseLintVitalModel
+[ 358s] > Task :tuition-ocr:generateReleaseLintVitalModel
+[ 358s] > Task :expo:bundleReleaseAar
+[ 358s] > Task :expo:assembleRelease
+[ 358s] > Task :expo-constants:bundleReleaseAar
+[ 358s] > Task :expo-constants:assembleRelease
+[ 358s] > Task :expo-log-box:bundleReleaseAar
+[ 358s] > Task :expo-log-box:assembleRelease
+[ 359s] > Task :expo-modules-core:bundleReleaseAar
+[ 359s] > Task :expo-modules-core:mapReleaseSourceSetPaths
+[ 359s] > Task :expo-modules-core:mergeReleaseResources FROM-CACHE
+[ 359s] > Task :expo-modules-core:verifyReleaseResources FROM-CACHE
+[ 359s] > Task :expo-modules-core:assembleRelease
+[ 359s] > Task :react-native-worklets:mapReleaseSourceSetPaths
+[ 360s] > Task :react-native-worklets:mergeReleaseResources FROM-CACHE
+[ 360s] > Task :react-native-worklets:verifyReleaseResources FROM-CACHE
+[ 360s] > Task :react-native-worklets:assembleRelease
+[ 360s] > Task :tuition-ocr:bundleReleaseAar
+[ 360s] > Task :tuition-ocr:assembleRelease
+[ 377s] > Task :app:processReleaseResources
+[ 380s] > Task :react-native-reanimated:buildCMakeRelWithDebInfo[armeabi-v7a][reanimated]
+[ 383s] > Task :expo-modules-core:lintVitalAnalyzeRelease
+[ 462s] > Task :react-native-reanimated:buildCMakeRelWithDebInfo[x86_64][reanimated]
