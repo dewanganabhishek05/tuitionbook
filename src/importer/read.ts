@@ -164,7 +164,6 @@ async function ocr(uri: string, isPdf: boolean): Promise<ParseResult> {
     throw new ImportError(msg.message || 'Could not read the text from this file.');
   }
   const rows = pagesToRows(pages);
-  console.log('[import-ocr-debug]', JSON.stringify(rows)); // TEMP: remove after device check
   if (!rows.length) throw new ImportError('No text was found. Try a clearer, well-lit photo with the whole list in view.');
   return parseRows(rows, { reliable: false });
 }
