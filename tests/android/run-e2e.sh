@@ -15,6 +15,11 @@ adb shell dumpsys package com.tuitionbook.app | grep -E "versionName|versionCode
 adb shell settings put global hide_error_dialogs 1 || true
 adb shell settings put global anr_show_background 0 || true
 
+# Let the freshly booted system settle, then clear any "isn't responding" dialog before Maestro starts.
+sleep 20
+adb shell input keyevent KEYCODE_HOME || true
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS > /dev/null || true
+
 # Prove it works fully offline.
 adb shell cmd connectivity airplane-mode enable || adb shell settings put global airplane_mode_on 1
 adb shell settings get global airplane_mode_on > "$OUT/airplane_mode.txt"

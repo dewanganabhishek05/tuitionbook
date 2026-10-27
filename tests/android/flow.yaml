@@ -3,6 +3,11 @@ appId: com.tuitionbook.app
 ---
 - launchApp:
     clearState: true
+- runFlow:
+    when:
+      visible: ".*isn't responding"
+    commands:
+      - tapOn: "Wait"
 - extendedWaitUntil:
     visible: "Add your first student"
     timeout: 90000

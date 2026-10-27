@@ -3,6 +3,11 @@
 appId: com.tuitionbook.app
 ---
 - launchApp
+- runFlow:
+    when:
+      visible: ".*isn't responding"
+    commands:
+      - tapOn: "Wait"
 - extendedWaitUntil:
     visible: ".*/18 paid"
     timeout: 90000
