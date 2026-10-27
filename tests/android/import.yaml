@@ -28,18 +28,25 @@ appId: com.tuitionbook.app
 - extendedWaitUntil:
     visible: "Review students"
     timeout: 90000
-- assertVisible: "8 found · 8 selected"
+# Aarav Sharma is one of the sample students, so he is found but left unticked.
+- assertVisible: "8 found · 7 selected"
 - assertVisible: "Aarav Sharma"
-- assertVisible: "Saanvi Nair"
-- assertVisible: ".*9876543210.*Class 8.*1,500.*"
+- assertVisible: "In your list"
+- assertVisible: "Diya Verma"
+- assertVisible: ".*9123456789.*Class 10.*2,000.*"
 - takeScreenshot: 32-ocr-table-review
-- scrollUntilVisible:
-    element: "Add 8 students"
-- tapOn: "Add 8 students"
+# What the OCR actually read for one row, shown in the edit sheet
+- tapOn: "Edit Kabir Singh"
 - extendedWaitUntil:
-    visible: "8 students added"
+    visible: "Read from:.*"
+    timeout: 10000
+- takeScreenshot: 32b-ocr-source-line
+- back
+- tapOn: "Add 7 students"
+- extendedWaitUntil:
+    visible: "7 students added"
     timeout: 60000
-- takeScreenshot: 33-added-8
+- takeScreenshot: 33-added-7
 
 # 2) A tilted, noisy photo
 - tapOn: "Upload another list"
