@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { ActivityIndicator, Image, Linking, View } from 'react-native';
 import { deleteBackup, downloadBackup, listBackups, uploadBackup, type DriveBackup } from '../backup/drive';
 import {
   connectAccount, disconnectAccount, googleAuthSupported, restoreAccount, type GoogleAccount,
 } from '../backup/googleAuth';
 import { exportBackupFile, pickBackupFile } from '../backup/local';
+import { GOOGLE_SETUP, GoogleSetupError } from '../backup/setup';
 import { describeSnapshot, restoreSnapshot, type Snapshot } from '../backup/snapshot';
 import { getSettings, setSettings, ensureDues } from '../db/repo';
 import { useDb, useLive } from '../db/live';
@@ -21,6 +23,7 @@ export default function BackupScreen() {
   const [checking, setChecking] = useState(googleAuthSupported);
   const [backups, setBackups] = useState<DriveBackup[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [setupOpen, setSetupOpen] = useState(false);
 
   const loadBackups = useCallback(async () => {
     try {
@@ -45,7 +48,8 @@ export default function BackupScreen() {
     try {
       await fn();
     } catch (e) {
-      notify('Something went wrong', (e as Error).message);
+      if (e instanceof GoogleSetupError) setSetupOpen(true); // show the steps instead of an error box
+      else notify('Something went wrong', (e as Error).message);
     } finally {
       setBusy(null);
     }
@@ -102,6 +106,14 @@ export default function BackupScreen() {
                   if (a) { setAccount(a); await loadBackups(); }
                 })}
               />
+              {setupOpen ? (
+                <DriveSetupHelp onClose={() => setSetupOpen(false)} />
+              ) : (
+                <Button label="First time? How to set up" size="sm" variant="ghost" onPress={() => setSetupOpen(true)} />
+              )}
+              <Text v="caption" tone="faint">
+                No Google setup yet? You can still keep backups in Drive: use Export file below and choose Drive.
+              </Text>
             </View>
           ) : (
             <View style={{ gap: 14 }}>
@@ -182,7 +194,7 @@ export default function BackupScreen() {
       <Section title="Backup file">
         <Card>
           <Text v="caption" tone="muted" style={{ marginBottom: 12 }}>
-            Save a backup file anywhere — send it to yourself on WhatsApp or email, or keep it in Files. Restore from it on any phone.
+            Works without any setup. Tap Export file, then choose Drive to keep it in Google Drive, or send it to yourself on WhatsApp or email. Restore picks the file from Drive, Files or anywhere else.
           </Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <Button
@@ -205,5 +217,52 @@ export default function BackupScreen() {
         </Card>
       </Section>
     </Screen>
+  );
+}
+
+function CopyRow({ label, value }: { label: string; value: string }) {
+  const { c } = useTheme();
+  const [done, setDone] = useState(false);
+  return (
+    <View style={{ gap: 4 }}>
+      <Text v="caption" tone="muted">{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.surface2, borderRadius: 14, paddingLeft: 12, paddingRight: 4, paddingVertical: 4 }}>
+        <Text style={{ flex: 1, fontSize: 13 }}>{value || '—'}</Text>
+        <Button
+          label={done ? 'Copied' : 'Copy'} size="sm" variant="secondary" disabled={!value}
+          onPress={async () => { await Clipboard.setStringAsync(value); setDone(true); setTimeout(() => setDone(false), 1500); }}
+        />
+      </View>
+    </View>
+  );
+}
+
+/** Shown when Google says this app is not registered yet: the exact values and steps for Google Cloud Console. */
+function DriveSetupHelp({ onClose }: { onClose: () => void }) {
+  const steps: [string, string | null][] = [
+    ['Create a project in Google Cloud Console and enable the Google Drive API.', GOOGLE_SETUP.driveApiUrl],
+    ['OAuth consent screen: choose External, add the scope …/auth/drive.file and add your Gmail as a Test user.', GOOGLE_SETUP.consentUrl],
+    ['Credentials → Create credentials → OAuth client ID → Android. Enter the package name and SHA-1 below.', GOOGLE_SETUP.consoleUrl],
+    ['Wait a few minutes, come back here and tap Connect Google account.', null],
+  ];
+  return (
+    <View style={{ gap: 12 }}>
+      <Text v="heading">Set up Google Drive (one time)</Text>
+      <Text v="caption" tone="muted">
+        Google needs to know this app before it lets you sign in. It takes about 5 minutes and is free.
+      </Text>
+      {steps.map(([text, url], i) => (
+        <View key={i} style={{ gap: 6 }}>
+          <Text v="caption"><Text v="caption" style={{ fontWeight: '700' }}>{i + 1}. </Text>{text}</Text>
+          {url ? <Button label="Open in browser" size="sm" variant="secondary" icon="open-outline" onPress={() => Linking.openURL(url)} /> : null}
+        </View>
+      ))}
+      <CopyRow label="Package name" value={GOOGLE_SETUP.packageName} />
+      <CopyRow label="SHA-1 certificate fingerprint" value={GOOGLE_SETUP.sha1} />
+      <Text v="caption" tone="faint">
+        The SHA-1 is for the APK signed with the TuitionBook release key. If you installed the app from Google Play, also add the app signing key SHA-1 shown in Play Console → App integrity.
+      </Text>
+      <Button label="Hide steps" size="sm" variant="ghost" onPress={onClose} />
+    </View>
   );
 }

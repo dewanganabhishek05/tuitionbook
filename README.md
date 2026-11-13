@@ -190,3 +190,6 @@ More → **Upload student data** adds many students at once from a photo, a scan
 - `src/importer/parse.ts` understands header rows (Name, Phone, Class, Fee, Joining date…, any order) and also headerless lines such as `1. Aarav Sharma 9876543210 Class 8 Rs 1500`. Titles, totals and signatures are skipped and listed under "Lines that were not added".
 - A review screen shows everything before it is saved: tick/untick, fix a field, default fee and joining date for missing values. Students already in the app are flagged and unticked.
 - Tests: `tests/importer.test.ts` (parsing, CSV/xlsx/docx, real Tesseract output fixtures), web flows in `tests/e2e/flows.mjs`, and an emulator flow `tests/android/import.yaml` that OCRs an image, a noisy photo and a PDF.
+
+## v1.5.1 – Google Drive set-up help
+Backup → Google Drive now shows the exact package name and SHA-1 (with copy buttons) and the Google Cloud steps when Google reports the app is not registered, instead of an error box. Backups to Drive also work with no set-up at all: Export file → choose Drive. The SHA-1 shown comes from `expo.extra.googleSetup` in `app.json`; change it if you sign with a different key.

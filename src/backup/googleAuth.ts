@@ -7,6 +7,7 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 import Constants from 'expo-constants';
+import { GoogleSetupError } from './setup';
 
 export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
@@ -63,10 +64,10 @@ export async function connectAccount(): Promise<GoogleAccount | null> {
     if (isErrorWithCode(e)) {
       if (e.code === statusCodes.IN_PROGRESS) return null;
       if (e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) throw new Error('Google Play Services is not available on this phone.');
-      if (e.code === '10' || e.code === 'DEVELOPER_ERROR') {
-        throw new Error('Google sign-in is not set up for this build yet (OAuth client / SHA-1). See README → Google Drive setup.');
-      }
+      if (e.code === '10' || e.code === 'DEVELOPER_ERROR') throw new GoogleSetupError();
     }
+    // Some versions report the same problem only in the message ("DEVELOPER_ERROR", "Error 10", "12500").
+    if (e instanceof Error && /DEVELOPER_ERROR|\b10:|12500|sign_in_failed/i.test(e.message)) throw new GoogleSetupError();
     throw e instanceof Error ? e : new Error(String(e));
   }
 }

@@ -1,4 +1,5 @@
 // Web preview stub: Google sign-in uses native Android/iOS SDKs, so Drive backup is phone-only.
+export { GoogleSetupError } from './setup';
 export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
 export interface GoogleAccount {

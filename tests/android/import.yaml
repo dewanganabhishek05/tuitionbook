@@ -87,3 +87,16 @@ appId: com.tuitionbook.app
     visible: "Aditi Rao"
     timeout: 20000
 - takeScreenshot: 36-students-after-import
+
+# Google Drive setup help is reachable and shows the values Google Cloud needs
+- tapOn: "More"
+- tapOn: "Backup.*"
+- extendedWaitUntil:
+    visible: "First time\\? How to set up"
+    timeout: 15000
+- tapOn: "First time\\? How to set up"
+- assertVisible: "Set up Google Drive \\(one time\\)"
+- assertVisible: "com.tuitionbook.app"
+- scrollUntilVisible:
+    element: "D1:D8:B0:64:.*"
+- takeScreenshot: 37-drive-setup-help
