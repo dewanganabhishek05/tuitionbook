@@ -1,7 +1,7 @@
 // End-to-end UI flows against the web preview (phone-sized viewport, fresh install).
 // Run:  npx expo start --web --port 8081   then   node tests/e2e/flows.mjs [baseUrl]
 // Needs Playwright (npm i -D playwright). Screenshots land in tests/e2e/out/.
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -56,7 +56,15 @@ async function tab(name) {
 async function step(name, fn) {
   const t0 = Date.now();
   try {
+    const a0 = alerts.length;
     await fn();
+    if (process.env.GALLERY) {
+      mkdirSync(OUT + 'states/', { recursive: true });
+      const n = String(results.length + 1).padStart(2, '0');
+      await page.waitForTimeout(250);
+      await page.screenshot({ path: `${OUT}states/${n}.png` });
+      writeFileSync(`${OUT}states/${n}.json`, JSON.stringify({ name, alerts: alerts.slice(a0) }));
+    }
     results.push({ name, ok: true, ms: Date.now() - t0 });
     console.log(`  ✓ ${name}`);
   } catch (e) {
