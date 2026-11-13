@@ -96,7 +96,8 @@ appId: com.tuitionbook.app
     timeout: 15000
 - tapOn: "First time\\? How to set up"
 - assertVisible: "Set up Google Drive \\(one time\\)"
-- assertVisible: "com.tuitionbook.app"
+- scrollUntilVisible:
+    element: "com.tuitionbook.app"
 - scrollUntilVisible:
     element: "D1:D8:B0:64:.*"
 - takeScreenshot: 37-drive-setup-help
