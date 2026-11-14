@@ -1,0 +1,80 @@
+[ 263s] > Task :expo-modules-core:lintVitalAnalyzeRelease FROM-CACHE
+[ 263s] > Task :expo-log-box:generateReleaseLintVitalModel
+[ 263s] > Task :expo-modules-core:generateReleaseLintVitalModel
+[ 263s] > Task :expo:generateReleaseLintModel
+[ 263s] > Task :expo-constants:bundleReleaseAar
+[ 263s] > Task :expo-constants:assembleRelease
+[ 263s] > Task :tuition-ocr:generateReleaseLintVitalModel
+[ 263s] > Task :expo:extractReleaseAnnotations FROM-CACHE
+[ 263s] > Task :expo-log-box:bundleReleaseAar
+[ 263s] > Task :expo-log-box:assembleRelease
+[ 263s] > Task :tuition-ocr:bundleReleaseAar
+[ 263s] > Task :tuition-ocr:assembleRelease
+[ 263s] > Task :expo:mergeReleaseConsumerProguardFiles
+[ 263s] > Task :expo:mergeReleaseJavaResource
+[ 263s] > Task :expo:syncReleaseLibJars FROM-CACHE
+[ 263s] > Task :expo:bundleReleaseLocalLintAar
+[ 263s] > Task :expo:generateReleaseLintVitalModel
+[ 263s] > Task :expo:bundleReleaseAar
+[ 263s] > Task :expo:assembleRelease
+[ 263s] > Task :expo-modules-core:bundleReleaseAar
+[ 263s] > Task :expo-modules-core:mapReleaseSourceSetPaths
+[ 263s] > Task :expo-modules-core:mergeReleaseResources FROM-CACHE
+[ 263s] > Task :expo-modules-core:verifyReleaseResources FROM-CACHE
+[ 263s] > Task :expo-modules-core:assembleRelease
+[ 285s] > Task :expo:lintVitalAnalyzeRelease
+[ 300s] > Task :react-native-reanimated:buildCMakeRelWithDebInfo[armeabi-v7a][reanimated]
+[ 360s] > Task :react-native-reanimated:buildCMakeRelWithDebInfo[x86_64][reanimated]
+[ 383s] > Task :react-native-reanimated:externalNativeBuildRelease
+[ 383s] > Task :react-native-reanimated:prefabReleasePackage
+[ 384s] > Task :react-native-reanimated:compileReleaseKotlin FROM-CACHE
+[ 384s] > Task :react-native-reanimated:compileReleaseJavaWithJavac FROM-CACHE
+[ 384s] > Task :react-native-reanimated:bundleLibCompileToJarRelease
+[ 384s] > Task :react-native-reanimated:mergeReleaseGeneratedProguardFiles
+[ 384s] > Task :react-native-reanimated:exportReleaseConsumerProguardFiles
+[ 384s] > Task :react-native-reanimated:bundleLibRuntimeToJarRelease
+[ 384s] > Task :react-native-reanimated:processReleaseJavaRes
+[ 384s] > Task :react-native-reanimated:createFullJarRelease
+[ 384s] > Task :react-native-reanimated:generateReleaseLintModel
+[ 384s] > Task :react-native-reanimated:extractReleaseAnnotations FROM-CACHE
+[ 384s] > Task :react-native-reanimated:mergeReleaseConsumerProguardFiles
+[ 384s] > Task :react-native-reanimated:mergeReleaseJavaResource
+[ 384s] > Task :react-native-reanimated:mergeReleaseNativeLibs
+[ 384s] > Task :react-native-reanimated:syncReleaseLibJars FROM-CACHE
+[ 384s] > Task :react-native-reanimated:stripReleaseDebugSymbols
+[ 384s] > Task :react-native-reanimated:copyReleaseJniLibsProjectAndLocalJars
+[ 385s] > Task :react-native-reanimated:copyReleaseJniLibsProjectOnly
+[ 385s] > Task :react-native-reanimated:bundleReleaseLocalLintAar
+[ 386s] > Task :react-native-reanimated:lintVitalAnalyzeRelease SKIPPED
+[ 386s] > Task :react-native-reanimated:generateReleaseLintVitalModel
+[ 392s] > Task :react-native-gesture-handler:buildCMakeRelWithDebInfo[arm64-v8a]
+[ 398s] > Task :react-native-reanimated:bundleReleaseAar
+[ 398s] > Task :react-native-reanimated:mapReleaseSourceSetPaths
+[ 398s] > Task :react-native-reanimated:mergeReleaseResources FROM-CACHE
+[ 398s] > Task :react-native-reanimated:verifyReleaseResources FROM-CACHE
+[ 398s] > Task :react-native-reanimated:assembleRelease
+[ 401s] > Task :react-native-gesture-handler:buildCMakeRelWithDebInfo[armeabi-v7a]
+[ 409s] > Task :react-native-gesture-handler:buildCMakeRelWithDebInfo[x86_64]
+[ 409s] > Task :react-native-gesture-handler:compileReleaseKotlin FROM-CACHE
+[ 409s] > Task :react-native-gesture-handler:compileReleaseJavaWithJavac FROM-CACHE
+[ 409s] > Task :react-native-gesture-handler:mergeReleaseGeneratedProguardFiles
+[ 409s] > Task :react-native-gesture-handler:exportReleaseConsumerProguardFiles
+[ 409s] > Task :react-native-gesture-handler:bundleLibCompileToJarRelease
+[ 409s] > Task :react-native-gesture-handler:bundleLibRuntimeToJarRelease
+[ 409s] > Task :react-native-gesture-handler:processReleaseJavaRes
+[ 409s] > Task :react-native-gesture-handler:createFullJarRelease
+[ 409s] > Task :react-native-gesture-handler:mergeReleaseNativeLibs
+[ 409s] > Task :react-native-gesture-handler:generateReleaseLintModel
+[ 409s] > Task :react-native-gesture-handler:extractReleaseAnnotations FROM-CACHE
+[ 409s] > Task :react-native-gesture-handler:mergeReleaseConsumerProguardFiles
+[ 410s] > Task :react-native-gesture-handler:mergeReleaseJavaResource
+[ 410s] > Task :react-native-gesture-handler:stripReleaseDebugSymbols
+[ 410s] > Task :react-native-gesture-handler:copyReleaseJniLibsProjectOnly
+[ 410s] > Task :react-native-gesture-handler:syncReleaseLibJars FROM-CACHE
+[ 410s] > Task :react-native-gesture-handler:copyReleaseJniLibsProjectAndLocalJars
+[ 410s] > Task :react-native-gesture-handler:lintVitalAnalyzeRelease FROM-CACHE
+[ 410s] > Task :react-native-gesture-handler:bundleReleaseLocalLintAar
+[ 410s] > Task :react-native-gesture-handler:generateReleaseLintVitalModel
+[ 410s] > Task :react-native-gesture-handler:bundleReleaseAar
+[ 410s] > Task :react-native-gesture-handler:assembleRelease
+[ 413s] > Task :app:buildCMakeRelWithDebInfo[arm64-v8a]
