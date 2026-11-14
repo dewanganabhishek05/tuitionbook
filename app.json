@@ -2,7 +2,7 @@
   "expo": {
     "name": "TuitionBook",
     "slug": "tuitionbook",
-    "version": "1.5.1",
+    "version": "1.5.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -24,7 +24,7 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
-      "versionCode": 8
+      "versionCode": 9
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -72,7 +72,7 @@
     ],
     "scheme": "tuitionbook",
     "extra": {
-      "googleWebClientId": "REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com",
+      "googleWebClientId": "701250915154-93p30pfco0iocdipqml5tpgm661pc9dt.apps.googleusercontent.com",
       "googleSetup": {
         "package": "com.tuitionbook.app",
         "sha1": "D1:D8:B0:64:DC:8C:D3:AB:3E:56:E8:9C:78:48:1E:4C:71:75:30:B1"

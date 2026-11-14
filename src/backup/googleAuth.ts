@@ -19,14 +19,15 @@ export interface GoogleAccount {
 
 let configured = false;
 
-function configure() {
-  if (configured) return;
-  const webClientId = (Constants.expoConfig?.extra as { googleWebClientId?: string } | undefined)?.googleWebClientId;
-  GoogleSignin.configure({
-    scopes: [DRIVE_SCOPE],
-    webClientId: webClientId && !webClientId.startsWith('REPLACE') ? webClientId : undefined,
-  });
-  configured = true;
+const clientId = (): string | undefined => {
+  const id = (Constants.expoConfig?.extra as { googleWebClientId?: string } | undefined)?.googleWebClientId;
+  return id && !id.startsWith('REPLACE') ? id : undefined;
+};
+
+function configure(withClientId = true) {
+  if (configured && withClientId) return;
+  GoogleSignin.configure({ scopes: [DRIVE_SCOPE], webClientId: withClientId ? clientId() : undefined });
+  configured = withClientId;
 }
 
 export const googleAuthSupported = true;
@@ -50,7 +51,18 @@ export async function restoreAccount(): Promise<GoogleAccount | null> {
 }
 
 export async function connectAccount(): Promise<GoogleAccount | null> {
-  configure();
+  try {
+    return await signIn(true);
+  } catch (e) {
+    // If the configured client ID is not a Web client, Google rejects it. The Android client that
+    // matches this app's package + SHA-1 works without one, so retry that way before giving up.
+    if (e instanceof GoogleSetupError && clientId()) return signIn(false);
+    throw e;
+  }
+}
+
+async function signIn(withClientId: boolean): Promise<GoogleAccount | null> {
+  configure(withClientId);
   try {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     const r = await GoogleSignin.signIn();
